@@ -37,7 +37,7 @@ def compute_rec_share(recommended_df: pd.DataFrame) -> dict:
         dict: {broadcaster: recommendation_share}
     """
     counts = recommended_df['broadcaster'].value_counts()
-    return (counts / counts.sum()).to_dict()
+    return {str(k): float(v) for k, v in (counts / counts.sum()).items()}
 
 
 def compute_exposure_gap(cat_share: dict, rec_share: dict) -> float:
@@ -107,9 +107,16 @@ def rerank_for_fairness(
     df['fairness_correction'] = df['broadcaster'].apply(
         lambda b: fairness_correction(b, cat_share, rec_share)
     )
+    # Normalise fairness_correction to [0,1] so it's on the same scale as current_score.
+    # Without this, a correction of 0.06 cannot compete with a base_score of 1.0.
+    fc_max = df['fairness_correction'].max()
+    if fc_max > 0:
+        df['fairness_correction_norm'] = df['fairness_correction'] / fc_max
+    else:
+        df['fairness_correction_norm'] = 0.0
     df['final_score'] = (
         (1 - lambda_weight) * df['current_score']
-        + lambda_weight * df['fairness_correction']
+        + lambda_weight * df['fairness_correction_norm']
     )
     df['fairness_boosted'] = df['fairness_correction'] > 0
 
