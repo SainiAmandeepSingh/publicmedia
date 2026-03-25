@@ -6,12 +6,12 @@
 
 ## 👥 Group Members & Public Values
 
-| Name | Public Value | Role |
+| Name | Public Value | Module |
 |---|---|---|
-| AmanDeep Singh | **Fairness** — equitable broadcaster exposure | Fairness re-ranking algorithm (EG metric) |
-| Padma Dhuney | **Diversity** — content variety for users | Diversity re-ranking (ILS metric) |
-| Lisa Wang | **Transparency** — explanations in the interface | Explanation labels & UI |
-| Kiron Putman | **Autonomy** — user control over recommendations | User preference controls & profile settings |
+| AmanDeep Singh | **Fairness** — equitable broadcaster exposure | `src/fairness.py` |
+| Padma Dhuney | **Diversity** — content variety for users | `src/diversity.py` |
+| Lisa Wang | **Transparency** — explanations in the interface | `src/transparency.py` |
+| Kiron Putman | **Autonomy** — user control over recommendations | `src/user_profiles.py` |
 
 ---
 
@@ -19,18 +19,23 @@
 
 This project builds a working recommender system prototype for **NPO Start**, the on-demand platform of the Nederlandse Publieke Omroep (NPO). The system addresses a structural fairness gap in NPO's CTR-optimised pipeline, which systematically underexposes smaller member broadcasters (VPRO, NTR, EO) in violation of the Mediawet 2008 mandate for balanced representation.
 
-The prototype integrates four public values into a single pipeline:
+The prototype integrates four public values into a single Streamlit application:
 
 ```
-User preference settings (Autonomy)
-        ↓
-Content-based scoring (watch history + genre match)
-        ↓
-Diversity re-ranking — ILS correction (Diversity)
-        ↓
-Fairness re-ranking — EG correction (Fairness)
-        ↓
-Display with explanation labels on every card (Transparency)
+[1] Content-based scoring
+    Cosine similarity on genre feature vectors
+    + Popularity bias (simulating NPO Start's CTR-driven baseline)
+    + User preference boost  ← Autonomy (Kiron Putman)
+            ↓
+[2] Diversity re-ranking     ← Diversity (Padma Dhuney)
+    Greedy ILS reduction using Jaccard distance on genre tags
+            ↓
+[3] Fairness re-ranking      ← Fairness (AmanDeep Singh)
+    Broadcaster-aware EG correction with λ-weighted blended score
+    Mediawet 2008 floor: λ ≥ 0.10
+            ↓
+[4] Explanation labels       ← Transparency (Lisa Wang)
+    Human-readable reason on every card + info pop-up
 ```
 
 ---
@@ -38,32 +43,30 @@ Display with explanation labels on every card (Transparency)
 ## 🗂️ Repository Structure
 
 ```
-npo_recommender/
+publicmedia/
 │
-├── app/                        # Streamlit application
-│   └── app.py                  # Main app entry point
+├── app/
+│   └── app.py                  # Streamlit application — main entry point
 │
 ├── src/                        # Core algorithm modules
-│   ├── data_loader.py          # POMS API + data loading (MAYBE)
-│   ├── scoring.py              # Base CTR / cosine similarity scoring (MAYBE)
-│   ├── diversity.py            # ILS diversity re-ranking (Padma)
-│   ├── fairness.py             # EG fairness re-ranking (AmanDeep)
-│   ├── transparency.py         # Explanation label generation (Lisa)
-│   └── user_profiles.py        # Synthetic user generation (Kiron)
+│   ├── data_loader.py          # NPO POMS API fetch + fallback logic
+│   ├── synthetic_data.py       # Synthetic catalogue + observation data generator
+│   ├── scoring.py              # Content-based cosine similarity scoring
+│   ├── diversity.py            # ILS diversity re-ranking (Padma Dhuney)
+│   ├── fairness.py             # EG fairness re-ranking (AmanDeep Singh)
+│   ├── transparency.py         # Explanation label generation (Lisa Wang)
+│   └── user_profiles.py        # Synthetic user generation + autonomy (Kiron Putman)
 │
 ├── data/
-│   ├── raw/                    # Raw data from POMS API + observation sampling
-│   └── processed/              # Cleaned, merged datasets ready for use
+│   ├── raw/                    # Raw data from POMS API or observation sampling
+│   └── processed/              # Cleaned datasets ready for use
 │
 ├── notebooks/
-│   ├── 01_data_collection.ipynb        # POMS API pull + observation sampling (MAYBE)
-
-├── docs/
-│   └── report.md               # Draft report sections
+│   └── 01_data_collection.ipynb   # Optional: POMS API pull + observation sampling
 │
-├── requirements.txt            # Python dependencies
-├── .gitignore                  # Files to exclude from git
-└── README.md                   # This file
+├── requirements.txt
+├── .gitignore
+└── README.md
 ```
 
 ---
@@ -72,8 +75,8 @@ npo_recommender/
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/YOUR_USERNAME/npo_recommender.git
-cd npo_recommender
+git clone https://github.com/SainiAmandeepSingh/publicmedia.git
+cd publicmedia
 ```
 
 ### 2. Create a virtual environment
@@ -88,16 +91,13 @@ venv\Scripts\activate           # Windows
 pip install -r requirements.txt
 ```
 
-### 4. Collect data
-Run the data collection notebook first:
-```bash
-jupyter notebook notebooks/01_data_collection.ipynb
-```
-
-### 5. Run the Streamlit app
+### 4. Run the app
 ```bash
 streamlit run app/app.py
 ```
+
+The app runs on synthetic data by default — no data collection step required.
+If you want to try pulling real catalogue data from the POMS API, see `src/data_loader.py`.
 
 ---
 
@@ -105,63 +105,86 @@ streamlit run app/app.py
 
 | Source | Type | Used For |
 |---|---|---|
-| [NPO POMS API](https://api.poms.omroep.nl) | Real — public API | Content catalogue (broadcaster, genre, metadata) |
-| NPO Start "Aanbevolen voor jou" | Real — observation sampling | Baseline rec_share per broadcaster |
-| Synthetic users | Generated — based on real genre distribution | User profiles, watch history, preferences |
+| [NPO POMS API](https://api.poms.omroep.nl) | Real — public, no auth required | Content catalogue: broadcaster labels, genre tags, episode metadata |
+| NPO Start "Aanbevolen voor jou" | Real — observation sampling | Baseline `rec_share` per broadcaster (pre-intervention) |
+| Synthetic catalogue | Generated — 300 items | Fallback when POMS API is unavailable; grounded in real broadcaster portfolio sizes |
+| Synthetic users | Generated — 30 profiles | 6 NPO-adapted viewer personas with realistic genre distributions |
+
+**Note on POMS API access:** The API is publicly accessible from a local machine via standard HTTP requests without authentication (`api.poms.omroep.nl`). It is not reachable from sandboxed cloud environments. Run `src/data_loader.py` locally to fetch and save real catalogue data to `data/processed/catalogue.csv`, which the app will load automatically on subsequent runs.
 
 ---
 
-## ⚙️ Algorithm Summary
+## ⚙️ Algorithm Details
 
-### Fairness Re-ranking (AmanDeep)
-Corrects broadcaster exposure at Stage 3 of the pipeline.
+### Fairness Re-ranking (AmanDeep Singh)
+Inserts a broadcaster-aware correction at Stage 3 of the pipeline — after content scoring and diversity re-ranking, before display.
 
+**Exposure Gap metric:**
 ```
 EG = (1/|B|) × Σ |rec_share(b) − cat_share(b)|
+```
 
-final_score(item) = (1−λ) × current_score(item) + λ × fairness_correction(broadcaster(item))
+**Re-ranking formula:**
+```
+final_score(item) = (1−λ) × current_score(item) + λ × fairness_correction_norm(broadcaster(item))
 
 fairness_correction(b) = max(0, cat_share(b) − rec_share(b))
+fairness_correction_norm = fairness_correction / max(fairness_correction)
 ```
 
-λ is selected via grid search to minimise EG while preserving acceptable engagement performance.
+The correction is normalised to [0,1] so it is on the same scale as the base score. λ is selected via grid search on the observation sample to reduce EG below a target threshold while preserving acceptable engagement performance. A **minimum λ floor of 0.10** is enforced — this represents the Mediawet 2008 constraint that broadcaster fairness cannot be fully disabled by user preferences.
 
-### Diversity Re-ranking (Padma)
-Reduces Intra-List Similarity (ILS) using Jaccard distance on genre tags.
+### Diversity Re-ranking (Padma Dhuney)
+Greedy selection algorithm that penalises genre repetition using Jaccard distance on genre tags.
 
 ```
-ILS = mean(jaccard_similarity(item_i, item_j)) for all pairs in top-N
+ILS = mean pairwise Jaccard similarity across all item pairs in the list
 
-diversity_score(item) = 1 − mean_similarity_to_already_selected_items
+selection_score(item) = base_score(item) − diversity_factor × mean_similarity_to_already_selected
 ```
 
-### Transparency (Lisa)
+### Transparency (Lisa Wang)
 Every recommended item displays:
-- Primary reason label ("Because you watched...", "Popular in Documentary", "Fairness-boosted")
-- ℹ️ button → pop-up with features that drove the recommendation
-- ❓ button → explanation of what data the algorithm uses overall
+- A short reason label on the card ("📺 Matches your interest in Drama", "🟢 Supporting VPRO — smaller broadcaster gaining visibility")
+- An ℹ️ pop-up with feature details and score breakdown
+- A ❓ general algorithm explainer accessible from the profile tab
 
-### Autonomy (Kiron)
-User-controlled settings in the sidebar:
-- **λ slider** — fairness weight (with minimum floor enforced by Mediawet 2008 constraint)
-- **Genre preference panel** — explicit genre interests that override behavioural data
-- **Profile transparency page** — view and edit what the system thinks you like
-
----
-
-## 📏 Metrics
-
-| Metric | Value | Meaning |
-|---|---|---|
-| EG (before) | ~0.14 | Baseline exposure gap |
-| EG (after) | ~0.02 | Post-intervention exposure gap |
-| ILS (before) | High | Low genre diversity |
-| ILS (after) | Lower | Higher genre diversity |
+### Autonomy (Kiron Putman)
+User-controlled settings exposed in the sidebar:
+- **λ slider** — fairness weight, bounded by Mediawet 2008 floor (min 0.10)
+- **Genre preference panel** — explicit genre interests that boost base scores
+- **Profile page** — view watch history, current settings, reset preferences
 
 ---
 
 ## ⚖️ Key Design Decision: Autonomy vs. Fairness Floor
 
-Kiron's autonomy features allow users to set λ themselves. However, NPO operates under the **Mediawet 2008**, which mandates balanced broadcaster representation. To respect both values, the system enforces a **minimum fairness floor**: λ cannot be set below a minimum threshold that ensures EG stays below a maximum acceptable level. Users have control within this floor, not over it. This design choice is discussed in the report's critical reflection.
+Kiron's autonomy features give users direct control over λ. However, NPO operates under the **Mediawet 2008**, which mandates balanced representation across member broadcasters. The system enforces a **minimum λ floor** to ensure the Exposure Gap never exceeds an acceptable threshold even when users maximise personal relevance.
+
+This is a principled compromise: user autonomy operates *within* NPO's legal mandate, not over it. The trade-off is documented in the report's critical reflection section.
 
 ---
+
+## 📏 Metrics Summary
+
+| Metric | Baseline | After re-ranking | Meaning |
+|---|---|---|---|
+| EG (Exposure Gap) | ~0.09–0.14 | Reduced by λ | Lower = more equitable broadcaster exposure |
+| ILS (Intra-List Similarity) | Higher | Lower | Lower = more genre diversity in the list |
+
+*EG baseline depends on data source: ~0.09 with synthetic data, ~0.14 with real POMS API + observation sampling as measured in AmanDeep Singh's research proposal.*
+
+---
+
+## 📦 Dependencies
+
+```
+streamlit>=1.32.0
+pandas>=2.0.0
+numpy>=1.26.0
+scikit-learn>=1.4.0
+requests>=2.31.0
+plotly>=5.18.0
+matplotlib>=3.8.0
+jupyter>=1.0.0
+```
