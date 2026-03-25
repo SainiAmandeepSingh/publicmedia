@@ -138,3 +138,33 @@ def generate_observation_sample(catalogue_df, n_sessions=60, seed=42):
                 "timestamp": (datetime(2024,1,1)+timedelta(hours=int(rng.integers(0,8760)))).isoformat(),
             })
     return pd.DataFrame(rows)
+
+
+def parse_genres(value) -> list:
+    """
+    Safely parse a genres value into a list of strings.
+    Handles all three cases:
+      - Already a list: ['Drama', 'Thriller']         → returned as-is
+      - CSV repr string: "['Drama', 'Thriller']"       → parsed to list
+      - Comma-separated string: "Drama,Thriller"       → split to list
+      - Single string: "Drama"                         → ['Drama']
+      - Empty / None                                   → []
+    Called by scoring.py, diversity.py, app.py whenever genres are read
+    from a DataFrame that may have been loaded from CSV.
+    """
+    if isinstance(value, list):
+        return [str(g).strip() for g in value if g]
+    if not isinstance(value, str) or not value.strip():
+        return []
+    v = value.strip()
+    # Python list repr: "['Drama', 'Thriller']"
+    if v.startswith('['):
+        try:
+            import ast
+            parsed = ast.literal_eval(v)
+            if isinstance(parsed, list):
+                return [str(g).strip() for g in parsed if g]
+        except Exception:
+            pass
+    # Comma-separated fallback
+    return [g.strip().strip("'\"") for g in v.split(',') if g.strip()]

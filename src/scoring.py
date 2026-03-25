@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.preprocessing import MultiLabelBinarizer
+from src.synthetic_data import parse_genres
 
 
 def build_feature_matrix(catalogue_df: pd.DataFrame) -> tuple:
@@ -20,9 +21,7 @@ def build_feature_matrix(catalogue_df: pd.DataFrame) -> tuple:
         (feature_matrix, item_ids, mlb) tuple
     """
     mlb = MultiLabelBinarizer()
-    genres = catalogue_df['genres'].apply(
-        lambda x: x if isinstance(x, list) else []
-    )
+    genres = catalogue_df['genres'].apply(parse_genres)
     feature_matrix = mlb.fit_transform(genres)
     item_ids = catalogue_df['item_id'].tolist()
     return feature_matrix, item_ids, mlb

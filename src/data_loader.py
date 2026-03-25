@@ -138,7 +138,7 @@ def fetch_series_detail(slug: str) -> dict | None:
             "broadcaster":     broadcaster,
             "primary_genre":   primary_g,
             "secondary_genre": secondary_g,
-            "genres":          [primary_g, secondary_g] if secondary_g else [primary_g],
+            "genres":          f"{primary_g},{secondary_g}" if secondary_g else primary_g,
             "synopsis":        (data.get("synopsis") or "")[:200],
         }
     except Exception as e:

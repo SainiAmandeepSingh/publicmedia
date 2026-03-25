@@ -10,6 +10,7 @@
 import numpy as np
 import pandas as pd
 from itertools import combinations
+from src.synthetic_data import parse_genres
 
 
 def jaccard_similarity(genres_a: set, genres_b: set) -> float:
@@ -46,7 +47,7 @@ def compute_ils(items: list[dict], genre_key: str = 'genres') -> float:
 
     pairs = list(combinations(items, 2))
     similarities = [
-        jaccard_similarity(set(a[genre_key]), set(b[genre_key]))
+        jaccard_similarity(set(parse_genres(a[genre_key])), set(parse_genres(b[genre_key])))
         for a, b in pairs
     ]
     return np.mean(similarities)
@@ -92,7 +93,7 @@ def rerank_for_diversity(
                 adjusted_score = item['current_score']
             else:
                 mean_sim = np.mean([
-                    jaccard_similarity(set(item[genre_key]), set(s[genre_key]))
+                    jaccard_similarity(set(parse_genres(item[genre_key])), set(parse_genres(s[genre_key])))
                     for s in selected
                 ])
                 adjusted_score = item['current_score'] - diversity_factor * mean_sim

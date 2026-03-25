@@ -3,7 +3,8 @@
 # Utrecht University | INFOMPPM | Assignment 2
 # Run with: streamlit run app/app.py
 
-import sys, os
+import sys, os, json
+from pathlib import Path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 import streamlit as st
@@ -49,17 +50,40 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Data (cached) ─────────────────────────────────────────────────────────────
+DATA_DIR = Path(__file__).parent.parent / "data" / "processed"
+
 @st.cache_data
 def load_all():
-    cat   = generate_catalogue(n_items=300, seed=42)
-    obs   = generate_observation_sample(cat, n_sessions=200, seed=42)
-    users = generate_users(cat, n_users=30, seed=42)
-    cat_share     = compute_cat_share(cat)
-    rec_share_bl  = compute_rec_share(obs)
-    fm, ids, mlb  = build_feature_matrix(cat)
-    return cat, obs, users, cat_share, rec_share_bl, fm, ids
+    cat_path = DATA_DIR / "catalogue.csv"
+    rs_path  = DATA_DIR / "rec_share.json"
 
-cat, obs, users_df, cat_share, rec_share_baseline, feature_matrix, item_ids = load_all()
+    if cat_path.exists():
+        # ── Real data from data_loader.py ──────────────────────────────
+        cat = pd.read_csv(cat_path)
+        # Ensure genres column is a proper list (CSV stores it as string repr)
+        from src.synthetic_data import parse_genres
+        cat['genres'] = cat['genres'].apply(parse_genres)
+        # Ensure item_id column exists (data_loader uses 'slug' as id)
+        if 'item_id' not in cat.columns and 'slug' in cat.columns:
+            cat = cat.rename(columns={'slug': 'item_id'})
+        # Load real rec_share if available, else compute from catalogue
+        if rs_path.exists():
+            rec_share_bl = json.loads(rs_path.read_text())
+        else:
+            obs = generate_observation_sample(cat, n_sessions=200, seed=42)
+            rec_share_bl = compute_rec_share(obs)
+    else:
+        # ── Synthetic fallback ─────────────────────────────────────────
+        cat = generate_catalogue(n_items=300, seed=42)
+        obs = generate_observation_sample(cat, n_sessions=200, seed=42)
+        rec_share_bl = compute_rec_share(obs)
+
+    users     = generate_users(cat, n_users=30, seed=42)
+    cat_share = compute_cat_share(cat)
+    fm, ids, mlb = build_feature_matrix(cat)
+    return cat, users, cat_share, rec_share_bl, fm, ids
+
+cat, users_df, cat_share, rec_share_baseline, feature_matrix, item_ids = load_all()
 
 # ── Pipeline helper ───────────────────────────────────────────────────────────
 def run_pipeline(user_profile, lambda_weight, diversity_factor, top_n):
@@ -142,6 +166,11 @@ ils_before = compute_ils(baseline_top.to_dict('records'))
 ils_after  = compute_ils(final_df.to_dict('records'))
 
 # ── Header ────────────────────────────────────────────────────────────────────
+# Show data source indicator
+_cat_path = DATA_DIR / "catalogue.csv"
+_data_source = f"🟢 Real data — {len(cat)} NPO series loaded from data/processed/" if _cat_path.exists() else f"🟡 Synthetic data — {len(cat)} items (run `python src/data_loader.py` for real data)"
+st.caption(_data_source)
+
 st.markdown('<div class="npo-header">📺 NPO Start — Public Values Recommender System</div>',
             unsafe_allow_html=True)
 
