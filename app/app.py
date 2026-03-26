@@ -169,6 +169,20 @@ hr {{ border-color: {NPO_BG_BORDER} !important; opacity: 0.5 !important; }}
 # ── Data loading ──────────────────────────────────────────────────────────────
 DATA_DIR = Path(__file__).parent.parent / "data" / "processed"
 
+# Real NPO broadcaster catalogue share — based on actual NPO portfolio sizes.
+# Used as the fairness baseline: what proportion of the total catalogue each
+# broadcaster owns. Kept separate from rec_share so EG is always meaningful.
+# Source: NPO annual reports and POMS catalogue proportions (Mediawet 2008 members).
+REAL_CAT_SHARE = {
+    "AVROTROS": 0.28,
+    "BNNVARA":  0.20,
+    "KRO-NCRV": 0.18,
+    "MAX":       0.12,
+    "NTR":       0.10,
+    "EO":        0.07,
+    "VPRO":      0.05,
+}
+
 @st.cache_data
 def load_all():
     cat_path = DATA_DIR / "catalogue.csv"
@@ -181,18 +195,23 @@ def load_all():
             cat = cat.rename(columns={'slug': 'item_id'})
         if 'image_url' not in cat.columns:
             cat['image_url'] = ""
+        # Load rec_share from real NPO Start observation data
         rec_share_bl = json.loads(rs_path.read_text()) if rs_path.exists() \
                        else compute_rec_share(cat)
+        # Use known real catalogue proportions — NOT computed from the small
+        # 89-item sample, which would make cat_share == rec_share and EG = 0
+        cat_share = REAL_CAT_SHARE
         data_source = f"🟢 Real data — {len(cat)} NPO series"
     else:
         cat = generate_catalogue(n_items=300, seed=42)
         obs = generate_observation_sample(cat, n_sessions=200, seed=42)
         rec_share_bl = compute_rec_share(obs)
         cat['image_url'] = ""
+        # For synthetic data, compute cat_share from the generated catalogue
+        cat_share = compute_cat_share(cat)
         data_source = f"🟡 Synthetic data — {len(cat)} items"
 
     users      = generate_users(cat, n_users=30, seed=42)
-    cat_share  = compute_cat_share(cat)
     fm, ids, _ = build_feature_matrix(cat)
     return cat, users, cat_share, rec_share_bl, fm, ids, data_source
 
@@ -320,7 +339,7 @@ baseline_top['fairness_boosted'] = False
 
 eg_before  = compute_exposure_gap(cat_share, rec_share_baseline)
 eg_after   = compute_exposure_gap(cat_share, compute_rec_share(final_df))
-eg_improve = (eg_before - eg_after) / eg_before * 100 if eg_before > 0 else 0
+eg_improve = (eg_before - eg_after) / eg_before * 100 if eg_before > 0.001 else None
 ils_before = compute_ils(baseline_top.to_dict('records'))
 ils_after  = compute_ils(final_df.to_dict('records'))
 
@@ -358,7 +377,7 @@ with tab_recs:
     c1.metric("Exposure Gap Baseline",   f"{eg_before:.3f}")
     c2.metric("Exposure Gap After",      f"{eg_after:.3f}",
               delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
-    c3.metric("EG Improvement",          f"{eg_improve:.0f}%")
+    c3.metric("EG Improvement", f"{eg_improve:.0f}%" if eg_improve is not None else "N/A")
     c4.metric("ILS Reduction",           f"{ils_before - ils_after:.3f}")
     st.divider()
 
@@ -438,7 +457,7 @@ with tab_recs:
         st.markdown(f"""
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
   <div style="width:9px;height:9px;background:#E05252;border-radius:50%;flex-shrink:0"></div>
-  <span style="font-size:0.92rem;font-weight:700">CTR Only — No Fairness Correction</span>
+  <span style="font-size:0.92rem;font-weight:700">CTR Only  ·  No Fairness Correction</span>
 </div>
 <p style="font-size:0.76rem;color:{NPO_WHITE_DIM};margin:0 0 10px 17px">
   EG {eg_before:.3f}  ·  ILS {ils_before:.3f}</p>
@@ -454,7 +473,7 @@ with tab_recs:
         st.markdown(f"""
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
   <div style="width:9px;height:9px;background:#5BBF8A;border-radius:50%;flex-shrink:0"></div>
-  <span style="font-size:0.92rem;font-weight:700">After Re-ranking — Fairness Weight λ = {lambda_val:.2f}</span>
+  <span style="font-size:0.92rem;font-weight:700">After Re-ranking  ·  Fairness Weight λ = {lambda_val:.2f}</span>
 </div>
 <p style="font-size:0.76rem;color:{NPO_WHITE_DIM};margin:0 0 10px 17px">
   EG {eg_after:.3f}  ·  ILS {ils_after:.3f}</p>
@@ -482,7 +501,7 @@ with tab_recs:
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_fair:
     section_header(
-        "Fairness Dashboard — Producer-side Fairness",
+        "Fairness Dashboard  ·  Producer-side Fairness",
         "AmanDeep Singh  ·  Exposure Gap (EG) metric  ·  Mediawet 2008",
         NPO_ORANGE
     )
@@ -499,7 +518,7 @@ with tab_fair:
     m1.metric("EG Baseline (CTR only)", f"{eg_before:.3f}")
     m2.metric("EG After Re-ranking",    f"{eg_after:.3f}",
               delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
-    m3.metric("EG Improvement",         f"{eg_improve:.0f}%")
+    m3.metric("EG Improvement", f"{eg_improve:.0f}%" if eg_improve is not None else "N/A")
     st.divider()
 
     # Before / after charts
