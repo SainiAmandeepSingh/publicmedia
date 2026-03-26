@@ -305,6 +305,13 @@ with st.sidebar:
                            label_visibility="collapsed",
                            help="Controls how strongly underexposed broadcasters are boosted. Min 0.10 = Mediawet 2008 floor.")
     st.markdown(f"<p style='font-size:0.7rem;color:rgba(255,255,255,0.35);margin-top:-2px'>Min 0.10  ·  Mediawet 2008 floor</p>", unsafe_allow_html=True)
+    st.markdown(
+        f"<p style='font-size:0.75rem;color:rgba(255,255,255,0.50);margin-top:4px;line-height:1.4'>"
+        f"λ = 0.10 replicates the current CTR-only system. "
+        f"λ = 1.0 applies maximum fairness correction. "
+        f"Values in between balance relevance and equitable broadcaster exposure.</p>",
+        unsafe_allow_html=True
+    )
 
     st.divider()
     label("🌍 Diversity Strength")
@@ -331,6 +338,21 @@ with st.sidebar:
     st.divider()
     show_explanations = st.toggle("Show explanation labels", value=True)
     show_scores       = st.toggle("Show score breakdown",    value=False)
+
+    st.divider()
+    from pathlib import Path as _P
+    _cat_exists = (_P(__file__).parent.parent / "data" / "processed" / "catalogue.csv").exists()
+    if _cat_exists:
+        st.markdown(
+            f"<p style='font-size:0.7rem;color:#5BBF8A;line-height:1.4'>"
+            f"🟢 Real NPO data loaded</p>",
+            unsafe_allow_html=True)
+    else:
+        st.markdown(
+            f"<p style='font-size:0.7rem;color:rgba(255,255,255,0.35);line-height:1.4'>"
+            f"🟡 Using synthetic data<br>"
+            f"Run <code>python src/data_loader.py</code> for real NPO content</p>",
+            unsafe_allow_html=True)
 
 # ── Run pipeline ──────────────────────────────────────────────────────────────
 scored_df, final_df = run_pipeline(user_profile, lambda_val, diversity_val, top_n)
@@ -378,7 +400,13 @@ with tab_recs:
     c2.metric("Exposure Gap After",      f"{eg_after:.3f}",
               delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
     c3.metric("EG Improvement", f"{eg_improve:.0f}%" if eg_improve is not None else "N/A")
-    c4.metric("ILS Reduction",           f"{ils_before - ils_after:.3f}")
+    c4.metric(
+        "ILS Change",
+        f"{ils_before - ils_after:+.3f}",
+        help="Intra-List Similarity change after re-ranking. Negative = more diverse list (lower ILS). Positive = less diverse.",
+        delta=f"{ils_before - ils_after:+.3f}",
+        delta_color="inverse",
+    )
     st.divider()
 
     # Programme card renderer
@@ -448,7 +476,11 @@ with tab_recs:
             details = get_feature_details(item, user_profile)
             with col.expander("Score breakdown"):
                 for k, v in details["score_breakdown"].items():
-                    st.write(f"**{k}:** {v}")
+                    try:
+                        formatted = f"{float(v):.3f}"
+                    except (TypeError, ValueError):
+                        formatted = str(v)
+                    st.write(f"**{k}:** {formatted}")
 
     # Side by side columns
     col_before, col_sep, col_after = st.columns([5, 1, 5])
@@ -463,7 +495,8 @@ with tab_recs:
   EG {eg_before:.3f}  ·  ILS {ils_before:.3f}</p>
 """, unsafe_allow_html=True)
         for item in baseline_top.to_dict('records'):
-            render_card(item, user_profile, show_explanations, show_scores, col_before)
+            # Score breakdown suppressed on before column — no fairness score computed
+            render_card(item, user_profile, show_explanations, False, col_before)
 
     with col_sep:
         st.markdown(f'<div style="width:1px;background:{NPO_BG_BORDER};min-height:500px;margin:30px auto 0 auto"></div>',
@@ -570,11 +603,12 @@ with tab_fair:
         "(Section 3.3 of the proposal).</p>",
         unsafe_allow_html=True)
 
-    lambda_grid = np.arange(0.0, 1.05, 0.05)
-    eg_grid = []
-    for lam in lambda_grid:
-        _, tmp = run_pipeline(user_profile, float(lam), diversity_val, top_n)
-        eg_grid.append(round(compute_exposure_gap(cat_share, compute_rec_share(tmp)), 4))
+    with st.spinner("Computing λ calibration across all fairness weights..."):
+        lambda_grid = np.arange(0.0, 1.05, 0.05)
+        eg_grid = []
+        for lam in lambda_grid:
+            _, tmp = run_pipeline(user_profile, float(lam), diversity_val, top_n)
+            eg_grid.append(round(compute_exposure_gap(cat_share, compute_rec_share(tmp)), 4))
 
     fig_lam = go.Figure()
     fig_lam.add_trace(go.Scatter(
@@ -714,9 +748,18 @@ with tab_about:
     section_header("About This Prototype", "INFOMPPM  ·  Utrecht University 2025-2026")
 
     st.markdown(f"""
-<p style="color:{NPO_WHITE_DIM};font-size:0.9rem;max-width:700px;margin-bottom:1.5rem">
-A working recommender system prototype for NPO Start that integrates four public values
-into a single pipeline. Built for the Personalisation for (Public) Media course.</p>
+<p style="color:{NPO_WHITE_DIM};font-size:0.9rem;max-width:760px;margin-bottom:0.75rem;line-height:1.6">
+A working recommender system prototype for <strong style="color:{NPO_WHITE}">NPO Start</strong>,
+the on-demand platform of the Nederlandse Publieke Omroep. The system addresses a structural
+fairness gap in NPO's CTR-optimised recommendation pipeline, which systematically underexposes
+smaller member broadcasters (VPRO, NTR, EO) in violation of the
+<strong style="color:{NPO_WHITE}">Mediawet 2008</strong> mandate for balanced representation.
+</p>
+<p style="color:{NPO_WHITE_DIM};font-size:0.9rem;max-width:760px;margin-bottom:1.5rem;line-height:1.6">
+The prototype integrates four public values — fairness, diversity, transparency, and autonomy —
+into a single pipeline, demonstrating how algorithmic design choices can be made to reflect
+institutional obligations rather than pure engagement metrics.
+</p>
 """, unsafe_allow_html=True)
 
     st.markdown("""
