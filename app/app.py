@@ -13,7 +13,7 @@ import numpy as np
 import plotly.graph_objects as go
 import plotly.express as px
 
-from src.synthetic_data import generate_catalogue, generate_observation_sample
+from src.synthetic_data import generate_catalogue, generate_observation_sample, parse_genres
 from src.user_profiles import generate_users, apply_user_preferences, NPO_PERSONAS
 from src.scoring import build_feature_matrix, score_items_for_user, DEFAULT_POPULARITY_BIAS
 from src.diversity import rerank_for_diversity, compute_ils
@@ -21,9 +21,9 @@ from src.fairness import (
     compute_cat_share, compute_rec_share, compute_exposure_gap,
     rerank_for_fairness, fairness_correction,
 )
-from src.transparency import get_primary_reason, get_feature_details, get_algorithm_explainer
+from src.transparency import get_primary_reason, get_feature_details
 
-# ── Page config ──────────────────────────────────────────────────────────────
+# ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="NPO Start — Public Values Recommender",
     page_icon="📺",
@@ -31,9 +31,15 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── Broadcaster colour palette ────────────────────────────────────────────────
 BROADCASTER_COLOURS = {
-    'AVROTROS': '#E63946', 'MAX': '#F4A261', 'KRO-NCRV': '#2A9D8F',
-    'VPRO': '#457B9D', 'NTR': '#6A4C93', 'EO': '#52B788',
+    'AVROTROS': '#E63946',
+    'MAX':      '#F4A261',
+    'KRO-NCRV': '#2A9D8F',
+    'VPRO':     '#457B9D',
+    'NTR':      '#6A4C93',
+    'EO':       '#52B788',
+    'BNNVARA':  '#E9C46A',
 }
 
 st.markdown("""
@@ -43,13 +49,10 @@ st.markdown("""
 [data-testid="stSidebar"] span, [data-testid="stSidebar"] div { color: #f0f0f0 !important; }
 .npo-header { background: #FF6600; padding: 1rem 1.5rem; border-radius: 8px;
               color: white; font-size: 1.3rem; font-weight: 700; margin-bottom: 1rem; }
-.card-dark { background:#1e1e1e; border-radius:10px; padding:0.8rem;
-             border:1px solid #333; margin-bottom:0.4rem; }
-.card-boosted { border-left: 4px solid #52B788 !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Data (cached) ─────────────────────────────────────────────────────────────
+# ── Data loading — real CSV first, synthetic fallback ─────────────────────────
 DATA_DIR = Path(__file__).parent.parent / "data" / "processed"
 
 @st.cache_data
@@ -58,43 +61,46 @@ def load_all():
     rs_path  = DATA_DIR / "rec_share.json"
 
     if cat_path.exists():
-        # ── Real data from data_loader.py ──────────────────────────────
         cat = pd.read_csv(cat_path)
-        # Ensure genres column is a proper list (CSV stores it as string repr)
-        from src.synthetic_data import parse_genres
         cat['genres'] = cat['genres'].apply(parse_genres)
-        # Ensure item_id column exists (data_loader uses 'slug' as id)
         if 'item_id' not in cat.columns and 'slug' in cat.columns:
             cat = cat.rename(columns={'slug': 'item_id'})
-        # Load real rec_share if available, else compute from catalogue
-        if rs_path.exists():
-            rec_share_bl = json.loads(rs_path.read_text())
-        else:
-            obs = generate_observation_sample(cat, n_sessions=200, seed=42)
-            rec_share_bl = compute_rec_share(obs)
+        rec_share_bl = json.loads(rs_path.read_text()) if rs_path.exists() \
+                       else compute_rec_share(cat)
+        data_source = f"🟢 Real data — {len(cat)} NPO series from data/processed/"
     else:
-        # ── Synthetic fallback ─────────────────────────────────────────
         cat = generate_catalogue(n_items=300, seed=42)
         obs = generate_observation_sample(cat, n_sessions=200, seed=42)
         rec_share_bl = compute_rec_share(obs)
+        data_source = f"🟡 Synthetic data — {len(cat)} items  (run `python src/data_loader.py` for real data)"
 
     users     = generate_users(cat, n_users=30, seed=42)
     cat_share = compute_cat_share(cat)
-    fm, ids, mlb = build_feature_matrix(cat)
-    return cat, users, cat_share, rec_share_bl, fm, ids
+    fm, ids, _ = build_feature_matrix(cat)
+    return cat, users, cat_share, rec_share_bl, fm, ids, data_source
 
-cat, users_df, cat_share, rec_share_baseline, feature_matrix, item_ids = load_all()
+cat, users_df, cat_share, rec_share_baseline, feature_matrix, item_ids, data_source = load_all()
 
-# ── Pipeline helper ───────────────────────────────────────────────────────────
+# ── Pipeline: scoring → diversity re-rank → fairness re-rank ──────────────────
 def run_pipeline(user_profile, lambda_weight, diversity_factor, top_n):
+    # Stage 1: content-based scoring with popularity bias
     scored = score_items_for_user(cat, user_profile, feature_matrix, item_ids, DEFAULT_POPULARITY_BIAS)
     scored = apply_user_preferences(scored, user_profile)
+    # Normalise base scores to [0,1] so fairness correction is proportionally meaningful
     mn, mx = scored['base_score'].min(), scored['base_score'].max()
     scored['base_score'] = (scored['base_score'] - mn) / (mx - mn + 1e-9)
     scored['current_score'] = scored['base_score']
+
+    # Stage 2: diversity re-ranking (Padma Dhuney — ILS)
     diverse = rerank_for_diversity(scored.head(top_n * 6), top_n=top_n * 2, diversity_factor=diversity_factor)
     diverse['current_score'] = diverse['base_score']
-    final   = rerank_for_fairness(diverse, cat_share, rec_share_baseline, lambda_weight=lambda_weight).head(top_n)
+
+    # Stage 3: fairness re-ranking (AmanDeep Singh — EG)
+    final = rerank_for_fairness(
+        diverse, cat_share, rec_share_baseline,
+        lambda_weight=lambda_weight
+    ).head(top_n)
+
     return scored, final
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -103,6 +109,7 @@ with st.sidebar:
     st.markdown("*Public Values Recommender*")
     st.divider()
 
+    # User persona selector
     st.markdown("### 👤 Viewer Persona")
     persona = st.selectbox(
         "Select persona", list(NPO_PERSONAS.keys()),
@@ -113,67 +120,80 @@ with st.sidebar:
     match = users_df[users_df['persona'] == persona]
     user_profile = match.iloc[0].to_dict() if not match.empty else {
         'user_id': 'guest', 'persona': persona,
-        'preferred_genres': NPO_PERSONAS[persona]['preferred_genres'],
+        'preferred_genres':     NPO_PERSONAS[persona]['preferred_genres'],
         'broadcaster_affinity': NPO_PERSONAS[persona]['broadcaster_affinity'],
-        'genre_weights': NPO_PERSONAS[persona]['genre_weights'],
+        'genre_weights':        NPO_PERSONAS[persona]['genre_weights'],
         'watch_history': [], 'lambda_preference': 0.5,
         'diversity_preference': 0.4, 'show_explanations': True,
     }
     st.divider()
 
-    st.markdown("### ⚙️ Your Preferences")
-    st.caption("*Autonomy — Kiron Putman*")
-
+    # ── Fairness weight — AmanDeep Singh ──────────────────────────────────────
+    st.markdown("### ⚖️ Fairness Settings")
     lambda_val = st.slider(
-        "Fairness weight (λ)", min_value=0.10, max_value=1.00,
-        value=float(user_profile.get('lambda_preference', 0.5)), step=0.05,
-        help="Higher λ = more fairness correction for underexposed broadcasters. "
-             "Minimum 0.10 enforced by Mediawet 2008."
+        "Fairness weight (λ)",
+        min_value=0.10, max_value=1.00,
+        value=float(user_profile.get('lambda_preference', 0.5)),
+        step=0.05,
+        help=(
+            "Controls how strongly underexposed broadcasters are boosted. "
+            "λ=0.10 = near-CTR-only; λ=1.0 = maximum fairness correction. "
+            "Minimum 0.10 enforced by Mediawet 2008."
+        )
     )
     st.caption("⚖️ Min λ = 0.10  |  Mediawet 2008 floor")
 
+    # ── Diversity setting — placeholder for Padma ─────────────────────────────
+    st.divider()
+    st.markdown("### 🌍 Diversity Settings")
     diversity_val = st.slider(
-        "Diversity strength", min_value=0.0, max_value=1.0,
-        value=float(user_profile.get('diversity_preference', 0.4)), step=0.05,
-        help="Higher value = more genre variety in your list (lower ILS)."
+        "Diversity strength",
+        min_value=0.0, max_value=1.0,
+        value=float(user_profile.get('diversity_preference', 0.4)),
+        step=0.05,
+        help="Padma Dhuney — controls ILS reduction in diversity re-ranking."
     )
+
     top_n = st.slider("Recommendations to show", 6, 12, 9, step=3)
 
+    # ── Genre preferences — placeholder for Kiron ────────────────────────────
     st.divider()
     st.markdown("### 🎭 Genre Preferences")
     all_genres = sorted(set(g for gs in cat['genres'] for g in gs))
     pref_default = [g for g in user_profile.get('preferred_genres', []) if g in all_genres]
-    selected_genres = st.multiselect("Preferred genres", all_genres, default=pref_default)
+    selected_genres = st.multiselect("Preferred genres", all_genres, default=pref_default,
+                                     help="Kiron Putman — explicit genre preferences override behavioural data.")
     if selected_genres:
         user_profile['preferred_genres'] = selected_genres
         for g in selected_genres:
             user_profile.setdefault('genre_weights', {})[g] = max(
                 user_profile.get('genre_weights', {}).get(g, 0.0), 0.6)
-    st.divider()
-    show_explanations = st.toggle("Show explanation labels", value=True)
-    show_scores       = st.toggle("Show score breakdown", value=False)
 
-# ── Run pipeline ──────────────────────────────────────────────────────────────
+    st.divider()
+    show_explanations = st.toggle("Show explanation labels", value=True,
+                                  help="Lisa Wang — transparency labels on each recommendation card.")
+    show_scores = st.toggle("Show score breakdown", value=False)
+
+# ── Run the pipeline ──────────────────────────────────────────────────────────
 scored_df, final_df = run_pipeline(user_profile, lambda_val, diversity_val, top_n)
-baseline_top        = scored_df.head(top_n).copy()
+baseline_top = scored_df.head(top_n).copy()
 baseline_top['fairness_boosted'] = False
 
+# ── Compute metrics ───────────────────────────────────────────────────────────
 eg_before  = compute_exposure_gap(cat_share, rec_share_baseline)
 eg_after   = compute_exposure_gap(cat_share, compute_rec_share(final_df))
 eg_improve = (eg_before - eg_after) / eg_before * 100 if eg_before > 0 else 0
-
 ils_before = compute_ils(baseline_top.to_dict('records'))
 ils_after  = compute_ils(final_df.to_dict('records'))
 
-# ── Header ────────────────────────────────────────────────────────────────────
-# Show data source indicator
-_cat_path = DATA_DIR / "catalogue.csv"
-_data_source = f"🟢 Real data — {len(cat)} NPO series loaded from data/processed/" if _cat_path.exists() else f"🟡 Synthetic data — {len(cat)} items (run `python src/data_loader.py` for real data)"
-st.caption(_data_source)
+# ── Page header ───────────────────────────────────────────────────────────────
+st.caption(data_source)
+st.markdown(
+    '<div class="npo-header">📺 NPO Start — Public Values Recommender System</div>',
+    unsafe_allow_html=True
+)
 
-st.markdown('<div class="npo-header">📺 NPO Start — Public Values Recommender System</div>',
-            unsafe_allow_html=True)
-
+# ── Tabs ──────────────────────────────────────────────────────────────────────
 tab_recs, tab_fair, tab_div, tab_profile, tab_about = st.tabs([
     "🎬 Aanbevolen voor jou",
     "⚖️ Fairness",
@@ -184,54 +204,68 @@ tab_recs, tab_fair, tab_div, tab_profile, tab_about = st.tabs([
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 1 — Recommendations
+# Demonstrates the fairness intervention: side-by-side before vs after
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_recs:
-    # Metrics row
+    # Top metrics
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Exposure Gap — baseline", f"{eg_before:.3f}")
-    c2.metric("Exposure Gap — after re-ranking", f"{eg_after:.3f}",
-              delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
-    c3.metric("EG improvement", f"{eg_improve:.0f}%")
+    c1.metric("Exposure Gap — baseline", f"{eg_before:.3f}",
+              help="EG before fairness re-ranking — measured from NPO Start observation data")
+    c2.metric("Exposure Gap — after", f"{eg_after:.3f}",
+              delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse",
+              help="EG after broadcaster-aware re-ranking at Stage 3")
+    c3.metric("EG improvement", f"{eg_improve:.0f}%",
+              help="How much the fairness gap was reduced by the re-ranking intervention")
     c4.metric("ILS reduction", f"{ils_before - ils_after:.3f}",
-              help="Positive = more diverse genre list after re-ranking")
+              help="Diversity improvement — lower ILS = more genre variety (Padma Dhuney)")
     st.divider()
 
-    # Side-by-side: before vs after
-    col_before, col_spacer, col_after = st.columns([5, 1, 5])
-
+    # ── Recommendation card renderer ──────────────────────────────────────────
     def render_card(item, user_profile, show_exp, show_score, col):
-        b = item.get('broadcaster', '')
+        b      = item.get('broadcaster', '')
         colour = BROADCASTER_COLOURS.get(b, '#999')
         boosted = item.get('fairness_boosted', False)
-        border = "border-left:4px solid #52B788;" if boosted else ""
-        genres = item.get('genres') or []
+        border  = "border-left:4px solid #52B788;" if boosted else ""
+        genres  = item.get('genres') or []
+        if isinstance(genres, str):
+            from src.synthetic_data import parse_genres as _pg
+            genres = _pg(genres)
+
         genre_chips = "".join([
             f'<span style="background:{colour};color:white;padding:1px 7px;'
             f'border-radius:10px;font-size:0.68rem;margin:1px;display:inline-block">{g}</span>'
             for g in genres
         ])
-        boost_badge = '<span style="float:right;font-size:0.65rem;color:#52B788">⬆ Fairness boost</span>' if boosted else ''
+        boost_badge = (
+            '<span style="float:right;font-size:0.65rem;color:#52B788">⬆ Fairness boost</span>'
+            if boosted else ''
+        )
         col.markdown(f"""
-<div style="background:#1e1e1e;border-radius:8px;padding:0.7rem;border:1px solid #333;{border}margin-bottom:0.3rem">
+<div style="background:#1e1e1e;border-radius:8px;padding:0.7rem;border:1px solid #333;
+            {border}margin-bottom:0.3rem">
   <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
     <span style="background:{colour};color:white;font-size:0.65rem;font-weight:700;
                  padding:1px 8px;border-radius:4px">{b}</span>{boost_badge}
   </div>
   <div style="font-size:0.88rem;font-weight:600;color:#f0f0f0;margin-bottom:4px">
-    {item.get('title','')}</div>
+    {item.get('title', '')}</div>
   <div>{genre_chips}</div>
 </div>""", unsafe_allow_html=True)
+
         if show_exp:
             reason = get_primary_reason(item, user_profile)
             col.caption(reason)
         if show_score:
             details = get_feature_details(item, user_profile)
-            with col.expander("Scores"):
+            with col.expander("Score breakdown"):
                 for k, v in details['score_breakdown'].items():
                     st.write(f"**{k}:** {v}")
 
+    # ── Side-by-side before / after ───────────────────────────────────────────
+    col_before, col_spacer, col_after = st.columns([5, 1, 5])
+
     with col_before:
-        st.markdown("##### 🔴 Before — CTR only (baseline)")
+        st.markdown("##### 🔴 Before — CTR-only (no fairness)")
         st.caption(f"EG = {eg_before:.3f}  |  ILS = {ils_before:.3f}")
         for item in baseline_top.to_dict('records'):
             render_card(item, user_profile, show_explanations, show_scores, col_before)
@@ -240,73 +274,106 @@ with tab_recs:
         st.markdown("")
 
     with col_after:
-        st.markdown(f"##### 🟢 After — Fairness + Diversity re-ranking (λ={lambda_val:.2f})")
+        st.markdown(f"##### 🟢 After — Fairness re-ranking (λ = {lambda_val:.2f})")
         st.caption(f"EG = {eg_after:.3f}  |  ILS = {ils_after:.3f}")
         for item in final_df.to_dict('records'):
             render_card(item, user_profile, show_explanations, show_scores, col_after)
 
     st.divider()
 
-    # Broadcaster share bar — after
+    # ── Broadcaster share in re-ranked list ───────────────────────────────────
     st.markdown("##### Broadcaster share in re-ranked list")
     bc_counts = final_df['broadcaster'].value_counts().reset_index()
     bc_counts.columns = ['Broadcaster', 'Count']
     bc_counts['Share (%)'] = bc_counts['Count'] / bc_counts['Count'].sum() * 100
-    fig = px.bar(bc_counts, x='Broadcaster', y='Share (%)', color='Broadcaster',
-                 color_discrete_map=BROADCASTER_COLOURS, text_auto='.1f', height=240)
-    fig.update_layout(showlegend=False, margin=dict(t=5, b=5),
-                      plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart(fig, use_container_width=True)
+    fig_bc = px.bar(
+        bc_counts, x='Broadcaster', y='Share (%)',
+        color='Broadcaster', color_discrete_map=BROADCASTER_COLOURS,
+        text_auto='.1f', height=240,
+    )
+    fig_bc.update_layout(
+        showlegend=False, margin=dict(t=5, b=5),
+        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+    )
+    st.plotly_chart(fig_bc, use_container_width=True)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — Fairness
+# TAB 2 — FAIRNESS DASHBOARD  (AmanDeep Singh)
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_fair:
     st.markdown("### ⚖️ Fairness Dashboard — Producer-side Fairness")
-    st.caption("AmanDeep Singh  |  Metric: Exposure Gap (EG)  |  Mediawet 2008")
+    st.caption("**AmanDeep Singh**  |  Metric: Exposure Gap (EG)  |  Mediawet 2008")
     st.markdown(
-        "**EG = (1/|B|) × Σ |rec\\_share(b) − cat\\_share(b)|**  — lower is fairer."
+        "EG measures how far each broadcaster's share of recommendations deviates "
+        "from its share of the total catalogue. A lower EG = more equitable exposure."
     )
+    st.latex(r"EG = \frac{1}{|B|} \sum_{b \in B} \left| rec\_share(b) - cat\_share(b) \right|")
     st.divider()
 
-    bc_list  = list(BROADCASTER_COLOURS.keys())
+    # ── EG headline numbers ───────────────────────────────────────────────────
+    m1, m2, m3 = st.columns(3)
+    m1.metric("EG — baseline (CTR-only)", f"{eg_before:.3f}",
+              help="Measured from NPO Start anonymous recommendation rows")
+    colour_eg = "#2A9D8F" if eg_after < eg_before else "#E63946"
+    m2.metric("EG — after re-ranking", f"{eg_after:.3f}",
+              delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
+    m3.metric("EG improvement", f"{eg_improve:.0f}%",
+              help="Percentage reduction in exposure gap achieved by the re-ranking intervention")
+    st.divider()
+
+    # ── Before / after bar charts ─────────────────────────────────────────────
+    bc_list  = [b for b in BROADCASTER_COLOURS if b in cat_share or b in rec_share_baseline]
     cat_vals = [cat_share.get(b, 0) * 100 for b in bc_list]
     obs_vals = [rec_share_baseline.get(b, 0) * 100 for b in bc_list]
     aft_vals = [compute_rec_share(final_df).get(b, 0) * 100 for b in bc_list]
 
     cl, cr = st.columns(2)
     with cl:
-        st.markdown(f"#### Before  —  EG = **{eg_before:.3f}**")
+        st.markdown(f"#### Before intervention  —  EG = **{eg_before:.3f}**")
+        st.caption("Catalogue share vs observed recommendation share (CTR-optimised baseline)")
         fig1 = go.Figure()
-        fig1.add_trace(go.Bar(name='Catalogue share', x=bc_list, y=cat_vals,
-                               marker_color='#457B9D'))
-        fig1.add_trace(go.Bar(name='Observed rec share', x=bc_list, y=obs_vals,
-                               marker_color='#E63946'))
-        fig1.update_layout(barmode='group', height=300,
-                           legend=dict(orientation='h', y=-0.35),
-                           margin=dict(t=5, b=5), yaxis_title='Share (%)',
-                           plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+        fig1.add_trace(go.Bar(
+            name='Catalogue share', x=bc_list, y=cat_vals, marker_color='#457B9D'))
+        fig1.add_trace(go.Bar(
+            name='Observed rec share (baseline)', x=bc_list, y=obs_vals, marker_color='#E63946'))
+        fig1.update_layout(
+            barmode='group', height=320,
+            legend=dict(orientation='h', y=-0.35),
+            margin=dict(t=5, b=5), yaxis_title='Share (%)',
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+        )
         st.plotly_chart(fig1, use_container_width=True)
 
     with cr:
-        colour_eg = "#2A9D8F" if eg_after < eg_before else "#E63946"
-        st.markdown(f"#### After  —  EG = <span style='color:{colour_eg}'>{eg_after:.3f}</span>", unsafe_allow_html=True)
+        st.markdown(
+            f"#### After re-ranking  —  EG = "
+            f"<span style='color:{colour_eg};font-weight:700'>{eg_after:.3f}</span>",
+            unsafe_allow_html=True,
+        )
+        st.caption(f"Catalogue share vs re-ranked recommendation share (λ = {lambda_val:.2f})")
         fig2 = go.Figure()
-        fig2.add_trace(go.Bar(name='Catalogue share', x=bc_list, y=cat_vals,
-                               marker_color='#457B9D'))
-        fig2.add_trace(go.Bar(name='Re-ranked rec share', x=bc_list, y=aft_vals,
-                               marker_color='#52B788'))
-        fig2.update_layout(barmode='group', height=300,
-                           legend=dict(orientation='h', y=-0.35),
-                           margin=dict(t=5, b=5), yaxis_title='Share (%)',
-                           plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+        fig2.add_trace(go.Bar(
+            name='Catalogue share', x=bc_list, y=cat_vals, marker_color='#457B9D'))
+        fig2.add_trace(go.Bar(
+            name='Re-ranked rec share', x=bc_list, y=aft_vals, marker_color='#52B788'))
+        fig2.update_layout(
+            barmode='group', height=320,
+            legend=dict(orientation='h', y=-0.35),
+            margin=dict(t=5, b=5), yaxis_title='Share (%)',
+            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+        )
         st.plotly_chart(fig2, use_container_width=True)
 
     st.divider()
 
-    # λ grid search
-    st.markdown("#### λ Sensitivity — EG across fairness weights (grid search)")
-    st.caption("This is how λ is calibrated: choose the value that minimises EG while preserving engagement.")
+    # ── λ grid search — calibration chart ────────────────────────────────────
+    st.markdown("#### λ Calibration — Grid Search over Fairness Weight")
+    st.caption(
+        "EG is computed for every λ value in [0, 1]. "
+        "The optimal λ is the lowest value that reduces EG below the target threshold "
+        "while preserving acceptable engagement performance — as described in Section 3.3 of the proposal."
+    )
     lambda_grid = np.arange(0.0, 1.05, 0.05)
     eg_grid = []
     for lam in lambda_grid:
@@ -314,225 +381,169 @@ with tab_fair:
         eg_grid.append(compute_exposure_gap(cat_share, compute_rec_share(tmp)))
 
     fig_lam = go.Figure()
-    fig_lam.add_trace(go.Scatter(x=lambda_grid, y=eg_grid, mode='lines+markers',
-                                  line=dict(color='#FF6600', width=2), marker=dict(size=5)))
-    fig_lam.add_vline(x=lambda_val, line_dash='dash', line_color='#52B788',
-                      annotation_text=f"λ = {lambda_val:.2f}")
-    fig_lam.add_hline(y=eg_before, line_dash='dot', line_color='#E63946',
-                      annotation_text="Baseline EG")
-    fig_lam.update_layout(height=280, xaxis_title='λ', yaxis_title='Exposure Gap (EG)',
-                          margin=dict(t=5, b=5),
-                          plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+    fig_lam.add_trace(go.Scatter(
+        x=lambda_grid, y=eg_grid,
+        mode='lines+markers',
+        line=dict(color='#FF6600', width=2),
+        marker=dict(size=6),
+        name='EG at each λ',
+    ))
+    fig_lam.add_vline(
+        x=lambda_val, line_dash='dash', line_color='#52B788',
+        annotation_text=f"Current λ = {lambda_val:.2f}",
+        annotation_position="top right",
+    )
+    fig_lam.add_hline(
+        y=eg_before, line_dash='dot', line_color='#E63946',
+        annotation_text="Baseline EG (no intervention)",
+    )
+    fig_lam.add_hline(
+        y=0.05, line_dash='dot', line_color='#F4A261',
+        annotation_text="Target EG threshold = 0.05",
+    )
+    fig_lam.update_layout(
+        height=300,
+        xaxis_title='λ (fairness weight)',
+        yaxis_title='Exposure Gap (EG)',
+        margin=dict(t=10, b=10),
+        legend=dict(orientation='h', y=-0.3),
+        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+    )
     st.plotly_chart(fig_lam, use_container_width=True)
+    st.divider()
 
-    # Fairness correction table
-    st.markdown("#### Fairness correction per broadcaster")
+    # ── Fairness correction per broadcaster ───────────────────────────────────
+    st.markdown("#### Fairness Correction per Broadcaster")
+    st.caption(
+        "fairness_correction(b) = max(0, cat_share(b) − rec_share(b))  — "
+        "underrepresented broadcasters receive a positive correction; "
+        "overexposed broadcasters receive 0. "
+        "Values are normalised to [0,1] before blending with the CTR score."
+    )
     fc_rows = []
     for b in bc_list:
         fc = fairness_correction(b, cat_share, rec_share_baseline)
         fc_rows.append({
             'Broadcaster': b,
-            'Catalogue share': f"{cat_share.get(b,0):.1%}",
-            'Rec share (baseline)': f"{rec_share_baseline.get(b,0):.1%}",
-            'Fairness correction': f"{fc:.3f}",
-            'Status': '✅ Underrepresented — boosted' if fc > 0 else '⚠️ Overexposed — not boosted',
+            'Catalogue share':     f"{cat_share.get(b, 0):.1%}",
+            'Rec share (baseline)': f"{rec_share_baseline.get(b, 0):.1%}",
+            'Fairness correction':  f"{fc:.4f}",
+            'Effect': '✅ Underrepresented — receives boost' if fc > 0 else '⚠️ Overexposed — no boost',
         })
     st.dataframe(pd.DataFrame(fc_rows), use_container_width=True, hide_index=True)
+    st.divider()
 
-    st.info(
-        "**Note:** EG computed on a small recommendation list (9 items) is inherently noisy. "
-        "The metric is most meaningful when aggregated across many users and sessions, "
-        "which Assignment 2 will implement. The λ sensitivity chart shows the trend correctly "
-        "even if individual EG values fluctuate."
-    )
+    # ── Re-ranking formula explanation ────────────────────────────────────────
+    st.markdown("#### Re-ranking Formula")
+    st.latex(r"score(item) = (1 - \lambda) \times CTR\_score(item) + \lambda \times fairness\_correction_{norm}(broadcaster(item))")
+    st.latex(r"fairness\_correction(b) = \max(0,\ cat\_share(b) - rec\_share(b))")
+    st.latex(r"fairness\_correction_{norm} = \frac{fairness\_correction}{\max(fairness\_correction)}")
+
+    col_info1, col_info2 = st.columns(2)
+    with col_info1:
+        st.info(
+            "**Why normalise?**  \n"
+            "Raw fairness_correction values are proportional differences (~0.04–0.10). "
+            "Without normalisation they are too small to compete against base scores (~1.0), "
+            "making λ have no real effect. Normalising to [0,1] ensures both signals are "
+            "on the same scale so λ genuinely controls the trade-off."
+        )
+    with col_info2:
+        st.info(
+            "**Mediawet 2008 floor**  \n"
+            "λ cannot be set below 0.10 in this system. This enforces NPO's legal obligation "
+            "under the Mediawet 2008 for balanced broadcaster representation. "
+            "User autonomy (Kiron Putman) operates within this floor, not over it."
+        )
+
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 3 — Diversity
+# TAB 3 — DIVERSITY  (Padma Dhuney — placeholder)
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_div:
-    st.markdown("### 🌍 Diversity Dashboard — Content Variety")
-    st.caption("Padma Dhuney  |  Metric: Intra-List Similarity (ILS)  |  Jaccard distance on genre tags")
-    st.markdown("**ILS = mean pairwise Jaccard similarity across all item pairs** — lower is more diverse.")
-    st.divider()
-
-    d1, d2, d3 = st.columns(3)
-    d1.metric("ILS — baseline", f"{ils_before:.3f}")
+    st.markdown("### 🌍 Diversity Dashboard")
+    st.caption("**Padma Dhuney**  |  Metric: Intra-List Similarity (ILS)")
+    st.info(
+        "**This tab is Padma Dhuney's section.**  \n\n"
+        "The diversity re-ranking module (`src/diversity.py`) is already integrated into the pipeline "
+        "and runs at Stage 2 before the fairness re-ranking. "
+        "ILS metrics are visible in Tab 1 (Recommendations).  \n\n"
+        "Padma will build out the full diversity dashboard here."
+    )
+    # Minimal metrics so the tab isn't empty
+    d1, d2 = st.columns(2)
+    d1.metric("ILS — before re-ranking", f"{ils_before:.3f}",
+              help="Mean pairwise Jaccard similarity across recommended items (higher = less diverse)")
     d2.metric("ILS — after re-ranking", f"{ils_after:.3f}",
               delta=f"{ils_after - ils_before:+.3f}", delta_color="inverse")
-    d3.metric("Diversity improvement", f"{(ils_before-ils_after)/ils_before*100:.0f}%" if ils_before > 0 else "—")
 
-    st.divider()
-
-    # Genre distribution comparison
-    def genre_freq(df):
-        gs = [g for row in df['genres'] for g in (row if isinstance(row, list) else [])]
-        s = pd.Series(gs).value_counts()
-        return (s / s.sum() * 100).reset_index().rename(columns={'index':'Genre', 0:'Pct', 'count':'Pct', 'proportion':'Pct'})
-
-    gb = genre_freq(baseline_top)
-    ga = genre_freq(final_df)
-    if 'Genre' not in gb.columns:
-        gb.columns = ['Genre', 'Pct']
-    if 'Genre' not in ga.columns:
-        ga.columns = ['Genre', 'Pct']
-
-    merged = gb.merge(ga, on='Genre', how='outer', suffixes=(' Before', ' After')).fillna(0)
-
-    fig_div = go.Figure()
-    fig_div.add_trace(go.Bar(name='Before re-ranking', x=merged['Genre'],
-                              y=merged.get('Pct Before', merged.iloc[:,1]),
-                              marker_color='#E63946'))
-    fig_div.add_trace(go.Bar(name='After re-ranking', x=merged['Genre'],
-                              y=merged.get('Pct After', merged.iloc[:,2]),
-                              marker_color='#2A9D8F'))
-    fig_div.update_layout(barmode='group', height=320, yaxis_title='% of recommendation list',
-                          legend=dict(orientation='h', y=-0.3), margin=dict(t=5, b=5),
-                          plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart(fig_div, use_container_width=True)
-
-    # Diversity strength sensitivity
-    st.markdown("#### Diversity factor sensitivity")
-    div_range = np.arange(0.0, 1.05, 0.1)
-    ils_range = []
-    for d in div_range:
-        sc2 = scored_df.copy()
-        sc2['current_score'] = sc2['base_score']
-        dv = rerank_for_diversity(sc2.head(top_n*6), top_n=top_n*2, diversity_factor=float(d))
-        ils_range.append(compute_ils(dv.head(top_n).to_dict('records')))
-
-    fig_ils = go.Figure()
-    fig_ils.add_trace(go.Scatter(x=div_range, y=ils_range, mode='lines+markers',
-                                  line=dict(color='#2A9D8F', width=2), marker=dict(size=5)))
-    fig_ils.add_vline(x=diversity_val, line_dash='dash', line_color='#F4A261',
-                      annotation_text=f"Current = {diversity_val:.2f}")
-    fig_ils.update_layout(height=260, xaxis_title='Diversity factor',
-                          yaxis_title='Intra-List Similarity (ILS)',
-                          margin=dict(t=5, b=5),
-                          plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-    st.plotly_chart(fig_ils, use_container_width=True)
-
-    st.info(
-        "The diversity re-ranker uses a greedy selection algorithm. At each step, it picks the item "
-        "that maximises: **selection_score = base_score − diversity_factor × mean_similarity_to_selected**. "
-        "A higher diversity factor penalises genre repetition more strongly."
-    )
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 4 — Profile / Autonomy
+# TAB 4 — MY PROFILE / AUTONOMY  (Kiron Putman — placeholder)
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_profile:
     st.markdown("### 👤 My Profile — Autonomy")
-    st.caption("Kiron Putman  |  User-controlled recommendation settings")
-    st.divider()
+    st.caption("**Kiron Putman**  |  User-controlled recommendation settings")
+    st.info(
+        "**This tab is Kiron Putman's section.**  \n\n"
+        "The autonomy controls (λ slider, genre preferences) are already wired into the sidebar "
+        "and feed into the pipeline. "
+        "Kiron will build out the full profile page, watch history view, and preference editor here."
+    )
+    # Show current settings so the tab has something useful
+    st.markdown("#### Current settings (from sidebar)")
+    st.markdown(f"**Persona:** {persona.title()}")
+    st.markdown(f"**Fairness weight (λ):** `{lambda_val:.2f}`")
+    st.markdown(f"**Diversity strength:** `{diversity_val:.2f}`")
+    pref_str = ", ".join(user_profile.get('preferred_genres', []))
+    st.markdown(f"**Preferred genres:** {pref_str or 'None set'}")
+    hist = user_profile.get('watch_history', [])
+    st.markdown(f"**Watch history items:** {len(hist)}")
+    if lambda_val <= 0.15:
+        st.warning("λ is at the Mediawet 2008 minimum floor (0.10).")
+    elif lambda_val >= 0.70:
+        st.success("High λ — smaller broadcasters are strongly boosted.")
 
-    p1, p2 = st.columns(2)
-    with p1:
-        st.markdown("#### What the system knows about you")
-        st.markdown(f"**Persona:** {persona.title()}")
-        st.markdown(f"**Description:** _{NPO_PERSONAS[persona]['description']}_")
-        pref_str = ", ".join(user_profile.get('preferred_genres', []))
-        st.markdown(f"**Preferred genres:** {pref_str or 'None set'}")
-        aff = user_profile.get('broadcaster_affinity', [])
-        st.markdown(f"**Broadcaster affinity:** {', '.join(aff) if aff else 'No strong affinity'}")
-        hist = user_profile.get('watch_history', [])
-        st.markdown(f"**Watch history items:** {len(hist)}")
-
-    with p2:
-        st.markdown("#### Current algorithm settings")
-        st.markdown(f"**Fairness weight (λ):** `{lambda_val:.2f}`")
-        if lambda_val <= 0.15:
-            st.warning("λ at Mediawet floor (0.10). Fairness correction is minimal but legally required.")
-        elif lambda_val >= 0.70:
-            st.success("High λ — smaller broadcasters are strongly boosted.")
-        else:
-            st.info("Balanced fairness–relevance trade-off.")
-
-        st.markdown(f"**Diversity strength:** `{diversity_val:.2f}`")
-        st.markdown(f"**Explanations visible:** `{show_explanations}`")
-
-        st.divider()
-        st.markdown("**Design note:** The λ slider gives you control over how much the fairness "
-                    "correction affects your recommendations. However, the minimum is fixed at 0.10 "
-                    "because NPO is legally required under the Mediawet 2008 to ensure equitable "
-                    "broadcaster representation. Your autonomy operates within this public mandate.")
-
-    st.divider()
-    if hist:
-        st.markdown("#### Your watch history (synthetic)")
-        hist_df = cat[cat['item_id'].isin(hist)][['title','broadcaster','genres','publication_date']].copy()
-        hist_df['genres'] = hist_df['genres'].apply(lambda x: ', '.join(x) if isinstance(x, list) else x)
-        st.dataframe(hist_df, use_container_width=True, hide_index=True)
-
-    st.divider()
-    st.markdown("#### How does the algorithm use your data?")
-    st.markdown(get_algorithm_explainer())
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 5 — About
+# TAB 5 — ABOUT
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_about:
     st.markdown("### ℹ️ About this prototype")
     st.markdown("""
-This prototype was built for **INFOMPPM — Personalisation for (Public) Media** at Utrecht University (2025–2026)
-as Assignment 2: a working recommender system for NPO Start that integrates four public values.
+**INFOMPPM — Personalisation for (Public) Media** | Utrecht University 2025–2026
 
----
+This prototype integrates four public values into a recommender system for **NPO Start**,
+the on-demand platform of the Nederlandse Publieke Omroep.
 
-#### Pipeline architecture
+#### Pipeline
 
 ```
-[1] Content-based scoring
-    Cosine similarity on genre feature vectors
-    + Popularity bias (simulating NPO Start's CTR-driven baseline)
-    + User preference boost (Autonomy — Kiron Putman)
-         ↓
-[2] Diversity re-ranking  (Padma Dhuney)
-    Greedy ILS reduction using Jaccard distance on genre tags
-         ↓
-[3] Fairness re-ranking   (AmanDeep Singh)
-    Broadcaster-aware EG correction with λ-weighted score
-    Normalised fairness_correction ensures meaningful signal
-    Mediawet 2008 floor: λ ≥ 0.10
-         ↓
-[4] Explanation labels    (Lisa Wang)
-    Human-readable reason on every card + info pop-up
+[1] Content-based scoring     — cosine similarity on genre tags
+                                + popularity bias (CTR-driven baseline)
+        ↓
+[2] Diversity re-ranking      — greedy ILS correction (Padma Dhuney)
+        ↓
+[3] Fairness re-ranking       — broadcaster-aware EG correction (AmanDeep Singh)
+                                λ-weighted score blending, Mediawet 2008 floor λ ≥ 0.10
+        ↓
+[4] Explanation labels        — human-readable reason on each card (Lisa Wang)
 ```
-
----
-
-#### Public values
-    """)
-
-    va, vb, vc, vd = st.columns(4)
-    va.markdown("**⚖️ Fairness**  \nEquitable broadcaster exposure. EG metric. Mediawet 2008 floor on λ.")
-    vb.markdown("**🌍 Diversity**  \nGenre variety via ILS. Greedy re-ranker on Jaccard similarity.")
-    vc.markdown("**🔍 Transparency**  \nReason label on every card. Info pop-up with score breakdown.")
-    vd.markdown("**🎛️ Autonomy**  \nλ slider + genre preferences + profile page.")
-
-    st.divider()
-    st.markdown("""
-#### Key design decision — Autonomy vs Fairness floor
-
-Kiron's autonomy slider lets users set λ. However, NPO is governed by the Mediawet 2008,
-which mandates balanced broadcaster representation. The system enforces **λ ≥ 0.10**,
-ensuring the fairness correction is never fully disabled. Users have agency within
-this legal constraint, not over it. This trade-off is documented in the report.
-
-#### Data sources
-
-| Source | Type | Used for |
-|---|---|---|
-| NPO POMS API schema | Real structure | Catalogue fields (broadcaster, genre, metadata) |
-| NPO Start "Aanbevolen voor jou" | Real observation | Biased baseline rec_share |
-| Synthetic catalogue | Generated (300 items) | Realistic content across 6 broadcasters |
-| Synthetic users | Generated (30 profiles) | 6 NPO-adapted viewer personas |
 
 #### Group members
 
 | Name | Public Value | Module |
 |---|---|---|
-| AmanDeep Singh | Fairness | `src/fairness.py` |
-| Padma Dhuney | Diversity | `src/diversity.py` |
-| Lisa Wang | Transparency | `src/transparency.py` |
-| Kiron Putman | Autonomy | `src/user_profiles.py` |
+| AmanDeep Singh | **Fairness** — equitable broadcaster exposure | `src/fairness.py` |
+| Padma Dhuney | **Diversity** — content variety for users | `src/diversity.py` |
+| Lisa Wang | **Transparency** — explanations in the interface | `src/transparency.py` |
+| Kiron Putman | **Autonomy** — user control over recommendations | `src/user_profiles.py` |
+
+#### Data sources
+
+| Source | Type | Used for |
+|---|---|---|
+| NPO Start `npo.nl/start/api` | Real — public, no auth | Observation baseline (`rec_share`) |
+| Synthetic catalogue | Generated — 300 items | Content catalogue (broadcaster, genre, metadata) |
+| Synthetic users | Generated — 30 profiles | 6 NPO viewer personas |
     """)
