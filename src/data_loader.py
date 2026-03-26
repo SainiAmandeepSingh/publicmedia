@@ -132,6 +132,16 @@ def fetch_series_detail(slug: str) -> dict | None:
         secondaries = genres[0].get("secondaries", []) if genres else []
         secondary_g = secondaries[0].get("name", "") if secondaries else ""
 
+        # Get default (thumbnail) image
+        images    = data.get("images", [])
+        image_url = ""
+        for img in images:
+            if img.get("role") == "default":
+                image_url = img.get("url", "")
+                break
+        if not image_url and images:
+            image_url = images[0].get("url", "")
+
         return {
             "title":           data.get("title", ""),
             "productId":       data.get("productId", ""),
@@ -140,6 +150,7 @@ def fetch_series_detail(slug: str) -> dict | None:
             "secondary_genre": secondary_g,
             "genres":          f"{primary_g},{secondary_g}" if secondary_g else primary_g,
             "synopsis":        (data.get("synopsis") or "")[:200],
+            "image_url":       image_url,
         }
     except Exception as e:
         print(f"  Warning: could not fetch detail for {slug}: {e}")
