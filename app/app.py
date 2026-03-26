@@ -364,72 +364,71 @@ with tab_recs:
 
     # Programme card renderer
     def render_card(item, user_profile, show_exp, show_score, col):
-        b       = item.get('broadcaster', '')
-        colour  = BROADCASTER_COLOURS.get(b, '#6B7A99')
-        boosted = item.get('fairness_boosted', False)
-        genres  = item.get('genres') or []
+        b       = item.get("broadcaster", "")
+        colour  = BROADCASTER_COLOURS.get(b, "#6B7A99")
+        boosted = item.get("fairness_boosted", False)
+        genres  = item.get("genres") or []
         if isinstance(genres, str):
             genres = parse_genres(genres)
-        title   = item.get('title', '')
-        img_url = item.get('image_url', '') or ''
+        title   = item.get("title", "")
+        img_url = (item.get("image_url") or "").strip()
 
-        boost_html = (
-            f'<span style="font-size:0.62rem;color:#5BBF8A;font-weight:700;'
-            f'background:rgba(91,191,138,0.15);padding:1px 6px;border-radius:3px;'
-            f'border:1px solid rgba(91,191,138,0.3);white-space:nowrap">⬆ fairness boost</span>'
-        ) if boosted else ''
+        boost_badge = (
+            "<span style='font-size:0.62rem;color:#5BBF8A;font-weight:700;"
+            "background:rgba(91,191,138,0.15);padding:1px 6px;border-radius:3px;"
+            "border:1px solid rgba(91,191,138,0.3)'>&#x2B06; fairness boost</span>"
+        ) if boosted else ""
 
-        genre_chips = "".join([
-            f'<span style="background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.65);'
-            f'padding:2px 7px;border-radius:4px;font-size:0.67rem;margin:1px 2px 0 0;'
-            f'display:inline-block;border:1px solid rgba(255,255,255,0.10)">{g}</span>'
+        genre_chips = "".join(
+            "<span style='background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.65);"
+            "padding:2px 7px;border-radius:4px;font-size:0.67rem;margin:1px 2px 0 0;"
+            "display:inline-block;border:1px solid rgba(255,255,255,0.10)'>"
+            + g + "</span>"
             for g in genres
-        ])
+        )
 
-        # Image section
+        # Image — use st.image for reliability, then card body via markdown
         if img_url:
-            img_html = f'''
-<div style="width:100%;height:110px;overflow:hidden;border-radius:6px 6px 0 0;
-            background:{NPO_BG_MID};margin-bottom:0;position:relative">
-  <img src="{img_url}" style="width:100%;height:100%;object-fit:cover;display:block"
-       onerror="this.parentElement.style.display='none'">
-  <div style="position:absolute;bottom:0;left:0;right:0;height:50%;
-              background:linear-gradient(transparent,{NPO_BG_CARD})"></div>
-</div>'''
-        else:
-            img_html = f'''
-<div style="width:100%;height:80px;background:{NPO_BG_MID};border-radius:6px 6px 0 0;
-            display:flex;align-items:center;justify-content:center">
-  <span style="font-size:1.6rem;opacity:0.3">📺</span>
-</div>'''
-
-        col.markdown(f"""
-<div style="background:{NPO_BG_CARD};border-radius:8px;
-            border:1px solid {NPO_BG_BORDER};border-left:3px solid {colour};
-            margin-bottom:0.6rem;overflow:hidden">
-  {img_html}
-  <div style="padding:0.65rem 0.75rem 0.7rem 0.75rem">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
-      <span style="background:{colour};color:white;font-size:0.62rem;font-weight:700;
-                   padding:1px 7px;border-radius:3px;letter-spacing:0.04em">{b}</span>
-      {boost_html}
-    </div>
-    <div style="font-size:0.88rem;font-weight:600;color:{NPO_WHITE};
-                margin-bottom:5px;line-height:1.3">{title}</div>
-    <div>{genre_chips}</div>
-  </div>
-</div>""", unsafe_allow_html=True)
+            col.markdown(
+                "<div style='border-radius:8px 8px 0 0;overflow:hidden;"
+                "border:1px solid " + NPO_BG_BORDER + ";border-bottom:none;"
+                "border-left:3px solid " + colour + ";margin-bottom:0'>",
+                unsafe_allow_html=True
+            )
+            col.image(img_url, use_container_width=True)
+        
+        # Card body
+        card_html = (
+            "<div style='background:" + NPO_BG_CARD + ";border-radius:"
+            + ("0 0 8px 8px" if img_url else "8px") + ";"
+            "border:1px solid " + NPO_BG_BORDER + ";"
+            "border-left:3px solid " + colour + ";"
+            + ("border-top:none;" if img_url else "") +
+            "padding:0.65rem 0.75rem 0.7rem;margin-bottom:0.6rem'>"
+            "<div style='display:flex;align-items:center;"
+            "justify-content:space-between;margin-bottom:5px'>"
+            "<span style='background:" + colour + ";color:white;font-size:0.62rem;"
+            "font-weight:700;padding:1px 7px;border-radius:3px;letter-spacing:0.04em'>"
+            + b + "</span>"
+            + boost_badge +
+            "</div>"
+            "<div style='font-size:0.88rem;font-weight:600;color:#FFFFFF;"
+            "margin-bottom:5px;line-height:1.3'>" + title + "</div>"
+            "<div>" + genre_chips + "</div>"
+            "</div>"
+        )
+        col.markdown(card_html, unsafe_allow_html=True)
 
         if show_exp:
             reason = get_primary_reason(item, user_profile)
             col.markdown(
-                f'<p style="font-size:0.73rem;color:rgba(255,255,255,0.40);'
-                f'margin:-10px 0 6px 4px;line-height:1.3">{reason}</p>',
+                "<p style='font-size:0.73rem;color:rgba(255,255,255,0.40);"
+                "margin:-10px 0 8px 4px;line-height:1.3'>" + reason + "</p>",
                 unsafe_allow_html=True)
         if show_score:
             details = get_feature_details(item, user_profile)
             with col.expander("Score breakdown"):
-                for k, v in details['score_breakdown'].items():
+                for k, v in details["score_breakdown"].items():
                     st.write(f"**{k}:** {v}")
 
     # Side by side columns
