@@ -587,7 +587,7 @@ with tab_recs:
 with tab_fair:
     section_header(
         "Fairness Dashboard  ·  Producer-side Fairness",
-        "AmanDeep Singh  ·  Exposure Gap (EG) metric  ·  Mediawet 2008",
+        "Exposure Gap (EG) metric  ·  Mediawet 2008  ·  Proportional fairness  ·  Stage 3 re-ranking",
         NPO_ORANGE
     )
     st.markdown(
@@ -604,6 +604,23 @@ with tab_fair:
     m2.metric("EG After Re-ranking",    f"{eg_after:.3f}",
               delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
     m3.metric("EG Improvement", f"{eg_improve:.0f}%" if eg_improve is not None else "N/A")
+
+    # Contextual explanation when EG worsens
+    if eg_after > eg_before:
+        st.warning(
+            "**Why did EG increase?**  \n"
+            "The fairness correction boosts underrepresented broadcasters (EO, VPRO) whose "
+            "content matches this persona's preferences. This causes over-concentration in "
+            "those broadcasters rather than spreading exposure. This is the "
+            "**fairness-relevance tension** from Section 4 of the proposal. "
+            "Try the **Varied Consumer** or **Family Viewer** persona to see EG reduction."
+        )
+    elif eg_improve is not None and eg_improve > 20:
+        st.success(
+            f"**EG reduced by {eg_improve:.0f}%.** "
+            "The re-ranking redistributed exposure toward underrepresented broadcasters "
+            "while preserving relevance for this viewer profile."
+        )
     st.divider()
 
     # Before / after charts
@@ -681,6 +698,27 @@ with tab_fair:
     fig_lam.update_layout(**npo_layout(
         height=290, xaxis_title='λ (fairness weight)', yaxis_title='Exposure Gap (EG)'))
     st.plotly_chart(fig_lam, use_container_width=True)
+
+    # Note when threshold not reached
+    min_eg = min(eg_grid)
+    if min_eg > 0.05:
+        opt_lam = lambda_grid[eg_grid.index(min_eg)]
+        st.info(
+            f"**EG target threshold (0.05) not reached for this persona.** "
+            f"Minimum EG achieved: **{min_eg:.3f}** at λ = {opt_lam:.2f}. "
+            "When user preferences already align with underrepresented broadcasters, "
+            "the correction amplifies their exposure rather than distributing it. "
+            "Try **Varied Consumer** to see the threshold crossed."
+        )
+    else:
+        crossed = [(lam, eg) for lam, eg in zip(lambda_grid, eg_grid) if eg <= 0.05]
+        if crossed:
+            opt_lam, opt_eg = crossed[0]
+            st.success(
+                f"**Optimal λ = {opt_lam:.2f}** reduces EG to **{opt_eg:.3f}**, "
+                "below the 0.05 target. This is the recommended deployment value "
+                "under the Mediawet 2008 mandate."
+            )
     st.divider()
 
     # Fairness correction table
