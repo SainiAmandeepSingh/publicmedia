@@ -25,7 +25,7 @@ from src.transparency import get_primary_reason, get_feature_details
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
-    page_title="NPO Start — Public Values Recommender",
+    page_title="NPO Start · Public Values Recommender",
     page_icon="📺",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -201,7 +201,7 @@ def load_all():
         # Use known real catalogue proportions — NOT computed from the small
         # 89-item sample, which would make cat_share == rec_share and EG = 0
         cat_share = REAL_CAT_SHARE
-        data_source = f"🟢 Real data — {len(cat)} NPO series"
+        data_source = f"🟢 Real data · {len(cat)} NPO series"
     else:
         cat = generate_catalogue(n_items=300, seed=42)
         obs = generate_observation_sample(cat, n_sessions=200, seed=42)
@@ -209,7 +209,7 @@ def load_all():
         cat['image_url'] = ""
         # For synthetic data, compute cat_share from the generated catalogue
         cat_share = compute_cat_share(cat)
-        data_source = f"🟡 Synthetic data — {len(cat)} items"
+        data_source = f"🟡 Synthetic data · {len(cat)} items"
 
     users      = generate_users(cat, n_users=30, seed=42)
     fm, ids, _ = build_feature_matrix(cat)
@@ -318,7 +318,7 @@ with st.sidebar:
     diversity_val = st.slider("div", 0.0, 1.0,
                               float(user_profile.get('diversity_preference', 0.4)), 0.05,
                               label_visibility="collapsed",
-                              help="Padma Dhuney — ILS reduction in diversity re-ranking.")
+                              help="Controls ILS reduction in diversity re-ranking.")
 
     top_n = st.slider("Recommendations", 6, 12, 9, step=3)
 
@@ -328,7 +328,7 @@ with st.sidebar:
     pref_default = [g for g in user_profile.get('preferred_genres', []) if g in all_genres]
     selected_genres = st.multiselect("genres", all_genres, default=pref_default,
                                      label_visibility="collapsed",
-                                     help="Kiron Putman — explicit genre preferences.")
+                                     help="Explicit genre preferences that override behavioural data.")
     if selected_genres:
         user_profile['preferred_genres'] = selected_genres
         for g in selected_genres:
@@ -399,18 +399,13 @@ with tab_recs:
     c1.metric("Exposure Gap Baseline",   f"{eg_before:.3f}")
     c2.metric("Exposure Gap After",      f"{eg_after:.3f}",
               delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
-    c3.metric(
-        "EG Improvement",
-        f"{eg_improve:.0f}%" if eg_improve is not None else "N/A",
-        delta="Better" if (eg_improve is not None and eg_improve > 0) else ("Worse" if (eg_improve is not None and eg_improve < 0) else None),
-        delta_color="normal" if (eg_improve is not None and eg_improve > 0) else "inverse",
-    )
+    c3.metric("EG Improvement", f"{eg_improve:.0f}%" if eg_improve is not None else "N/A")
     c4.metric(
         "ILS Change",
         f"{ils_before - ils_after:+.3f}",
-        help="Intra-List Similarity change. Negative = more genre diversity (good). Positive = less diversity.",
-        delta=f"{'More diverse' if ils_before - ils_after > 0 else 'Less diverse' if ils_before - ils_after < 0 else 'No change'}",
-        delta_color="normal" if ils_before - ils_after > 0 else "inverse",
+        help="Intra-List Similarity change after re-ranking. Negative = more diverse list (lower ILS). Positive = less diverse.",
+        delta=f"{ils_before - ils_after:+.3f}",
+        delta_color="inverse",
     )
     st.divider()
 
@@ -556,12 +551,7 @@ with tab_fair:
     m1.metric("EG Baseline (CTR only)", f"{eg_before:.3f}")
     m2.metric("EG After Re-ranking",    f"{eg_after:.3f}",
               delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
-    m3.metric(
-        "EG Improvement",
-        f"{eg_improve:.0f}%" if eg_improve is not None else "N/A",
-        delta="Better" if (eg_improve is not None and eg_improve > 0) else ("Worse" if (eg_improve is not None and eg_improve < 0) else None),
-        delta_color="normal" if (eg_improve is not None and eg_improve > 0) else "inverse",
-    )
+    m3.metric("EG Improvement", f"{eg_improve:.0f}%" if eg_improve is not None else "N/A")
     st.divider()
 
     # Before / after charts
@@ -645,7 +635,7 @@ with tab_fair:
     label("Fairness Correction per Broadcaster")
     st.markdown(
         f"<p style='font-size:0.8rem;color:rgba(255,255,255,0.45);margin-bottom:0.75rem'>"
-        "fairness_correction(b) = max(0, cat_share(b) − rec_share(b))  —  "
+        "fairness_correction(b) = max(0, cat_share(b) − rec_share(b))  · "
         "underrepresented broadcasters receive a positive correction. "
         "Values are normalised to [0,1] before blending with the CTR score.</p>",
         unsafe_allow_html=True)
@@ -690,7 +680,7 @@ with tab_fair:
 # TAB 3 — DIVERSITY  (Padma Dhuney)
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_div:
-    section_header("Diversity Dashboard", "Coming soon", "#3AAEA0")
+    section_header("Diversity Dashboard", "Padma Dhuney  ·  Coming soon", "#3AAEA0")
     st.markdown(f"""
 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
             min-height:340px;background:{NPO_BG_CARD};border-radius:12px;
@@ -731,7 +721,7 @@ with tab_profile:
   <h3 style="color:{NPO_WHITE};font-size:1.1rem;font-weight:700;margin:0 0 8px 0">
     User Profile and Autonomy Controls</h3>
   <p style="color:{NPO_WHITE_DIM};font-size:0.88rem;text-align:center;max-width:380px;margin:0">
-    λ slider and genre preferences are already wired
+    λ slider and genre preferences are already active
     into the sidebar and feed the pipeline. Full profile editor coming here.</p>
   <div style="margin-top:1.5rem;display:flex;gap:1.5rem">
     <div style="text-align:center">
@@ -766,7 +756,7 @@ smaller member broadcasters (VPRO, NTR, EO) in violation of the
 <strong style="color:{NPO_WHITE}">Mediawet 2008</strong> mandate for balanced representation.
 </p>
 <p style="color:{NPO_WHITE_DIM};font-size:0.9rem;max-width:760px;margin-bottom:1.5rem;line-height:1.6">
-The prototype integrates four public values — fairness, diversity, transparency, and autonomy —
+The prototype integrates four public values (fairness, diversity, transparency, and autonomy)
 into a single pipeline, demonstrating how algorithmic design choices can be made to reflect
 institutional obligations rather than pure engagement metrics.
 </p>
@@ -774,14 +764,14 @@ institutional obligations rather than pure engagement metrics.
 
     st.markdown("""
 ```
-[1] Content-based scoring    — cosine similarity on genre tags + popularity bias
+[1] Content-based scoring    cosine similarity on genre tags + popularity bias
         ↓
-[2] Diversity re-ranking     — greedy ILS correction  (Padma Dhuney)
+[2] Diversity re-ranking     greedy ILS correction  (Padma Dhuney)
         ↓
-[3] Fairness re-ranking      — broadcaster-aware EG correction  (AmanDeep Singh)
+[3] Fairness re-ranking     broadcaster-aware EG correction  (AmanDeep Singh)
                                λ-weighted score blending  ·  Mediawet 2008 floor λ ≥ 0.10
         ↓
-[4] Explanation labels       — human-readable reason on each card  (Lisa Wang)
+[4] Explanation labels      human-readable reason on each card  (Lisa Wang)
 ```
 """)
     st.divider()
