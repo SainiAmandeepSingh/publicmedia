@@ -440,19 +440,20 @@ with tab_recs:
         ) if boosted else ""
 
         bc_badge = (
-            "<div style='position:absolute;bottom:8px;left:8px;"
-            "background:rgba(0,0,0,0.6);color:white;"
-            "font-size:0.6rem;font-weight:700;padding:2px 7px;border-radius:3px'>"
+            "<div style='position:absolute;top:8px;left:8px;"
+            "background:" + colour + ";color:white;"
+            "font-size:0.6rem;font-weight:700;padding:2px 7px;border-radius:4px;"
+            "letter-spacing:0.04em'>"
             + b + "</div>"
         )
 
         overlay = (
             "<div style='position:absolute;bottom:0;left:0;right:0;height:65%;"
             "background:linear-gradient(transparent," + NPO_BG_DEEP + "DD)'>"
-            "<div style='position:absolute;bottom:10px;left:10px;right:52px;"
-            "font-size:0.88rem;font-weight:700;color:#FFFFFF;line-height:1.25'>"
+            "<div style='position:absolute;bottom:8px;left:8px;right:8px;"
+            "font-size:0.85rem;font-weight:700;color:#FFFFFF;line-height:1.25;"
+            "text-shadow:0 1px 3px rgba(0,0,0,0.8)'>"
             + title + "</div>"
-            + bc_badge +
             "</div>"
         )
 
@@ -492,7 +493,9 @@ with tab_recs:
             )
         if meta:
             col.markdown(
-                "<p style='margin:-2px 0 10px 2px;line-height:1.4'>" + "  ·  ".join(meta) + "</p>",
+                "<p style='margin:-2px 0 10px 2px;white-space:nowrap;"
+                "overflow:hidden;text-overflow:ellipsis;font-size:0.71rem'>"
+                + "  ·  ".join(meta) + "</p>",
                 unsafe_allow_html=True)
 
         if show_score:

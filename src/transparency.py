@@ -37,7 +37,7 @@ def get_primary_reason(item: dict, user_profile: dict) -> str:
 
     if item.get('fairness_boosted'):
         broadcaster = item.get('broadcaster', 'this broadcaster')
-        return f"🟢 Supporting {broadcaster} — smaller broadcaster gaining visibility"
+        return f"🟢 {broadcaster} · smaller broadcaster gaining visibility"
 
     if item_genres & preferred:
         matching = list(item_genres & preferred)
