@@ -330,9 +330,20 @@ with st.sidebar:
     diversity_val = st.slider("div", 0.0, 1.0,
                               float(user_profile.get('diversity_preference', 0.4)), 0.05,
                               label_visibility="collapsed",
-                              help="Controls ILS reduction in diversity re-ranking.")
+                              help="Controls genre variety in recommendations via ILS re-ranking.")
+    st.markdown(
+        f"<p style='font-size:0.75rem;color:rgba(255,255,255,0.50);margin-top:4px;line-height:1.4'>"
+        f"0.0 = no diversity correction, pure relevance ranking. "
+        f"1.0 = maximum genre variety. "
+        f"Values in between balance relevance and content diversity.</p>",
+        unsafe_allow_html=True
+    )
 
-    top_n = st.slider("Recommendations", 6, 12, 9, step=3)
+    st.divider()
+    label("📺 Recommendations")
+    top_n = st.slider("top_n", 4, 12, 8, step=1,
+                      label_visibility="collapsed",
+                      help="Number of programmes to show in each list.")
 
     st.divider()
     label("🎭 Genre Preferences")
