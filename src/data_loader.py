@@ -31,11 +31,24 @@ OUTPUT_DIR = Path(__file__).parent.parent / "data" / "processed"
 # These are the exact collectionIds observed in NPO Start's network requests.
 # They represent what the CTR-optimised system shows anonymous users —
 # i.e. the pre-intervention baseline for the Exposure Gap measurement.
+# All public recommendation rows on NPO Start's homepage.
+# Fetching all 11 rows gives ~200-250 unique series for a more reliable
+# rec_share baseline (vs 89 from the original 4 rows).
+# Each row represents a different editorial/algorithmic curation by NPO Start.
 COLLECTION_IDS = [
-    ("series-anonymous-v0",       "SERIES"),   # main recommendations row
-    ("trending-anonymous-v0",     "SERIES"),   # trending
-    ("public-value-anonymous-v0", "SERIES"),   # public value row
-    ("recent-free-v0",            "SERIES"),   # recently added free content
+    # Original 4 rows
+    ("series-anonymous-v0",         "SERIES"),   # main recommendations row
+    ("trending-anonymous-v0",       "SERIES"),   # trending series
+    ("public-value-anonymous-v0",   "SERIES"),   # public value curated row
+    ("recent-free-v0",              "SERIES"),   # recently added free content
+    # Additional 7 rows (discovered via recommendation-layout API)
+    ("real-life-anonymous-v0",      "SERIES"),   # real-life / human interest
+    ("crime-anonymous-v0",          "SERIES"),   # crime and thriller
+    ("documentaries-anonymous-v0",  "PROGRAM"),  # documentary programmes
+    ("documentaries-series-v0",     "SERIES"),   # documentary series
+    ("films-anonymous-v0",          "PROGRAM"),  # films
+    ("youth-0-6-v0",                "SERIES"),   # children 0-6
+    ("youth-6-12-v0",               "SERIES"),   # children 6-12
 ]
 
 # Anonymous party ID — generates a fresh one each session, any value works
@@ -72,10 +85,15 @@ def fetch_collection(collection_id: str, collection_type: str) -> list[dict]:
         items = data.get("items", [])
         return [
             {
-                "slug":         item.get("slug", ""),
-                "title":        item.get("title", ""),
-                "productId":    item.get("productId", ""),
-                "collectionId": collection_id,
+                "slug":             item.get("slug", ""),
+                "title":            item.get("title", ""),
+                "productId":        item.get("productId", ""),
+                "collectionId":     collection_id,
+                # Which NPO recommender model placed this item (fallback:A/B/C = different CTR models)
+                "itemRecommender":  item.get("itemRecommender", ""),
+                # Rank position within the collection (0 = first shown)
+                "offer_index":      item.get("npoTagRecommender", {}).get(
+                                        "recommendation", {}).get("offer_index", None),
             }
             for item in items
             if item.get("slug")
@@ -132,25 +150,35 @@ def fetch_series_detail(slug: str) -> dict | None:
         secondaries = genres[0].get("secondaries", []) if genres else []
         secondary_g = secondaries[0].get("name", "") if secondaries else ""
 
-        # Get default (thumbnail) image
-        images    = data.get("images", [])
-        image_url = ""
+        # Get images — default (wide header) and title (logo treatment)
+        images        = data.get("images", [])
+        image_url     = ""
+        image_url_logo = ""
         for img in images:
-            if img.get("role") == "default":
-                image_url = img.get("url", "")
-                break
+            role = img.get("role", "")
+            url  = img.get("url", "")
+            if role == "default" and not image_url:
+                image_url = url
+            elif role == "title" and not image_url_logo:
+                image_url_logo = url
+        # Fallback: use first available image
         if not image_url and images:
             image_url = images[0].get("url", "")
 
+        # Age rating / content classification
+        classification = data.get("contentClassification", "")
+
         return {
-            "title":           data.get("title", ""),
-            "productId":       data.get("productId", ""),
-            "broadcaster":     broadcaster,
-            "primary_genre":   primary_g,
-            "secondary_genre": secondary_g,
-            "genres":          f"{primary_g},{secondary_g}" if secondary_g else primary_g,
-            "synopsis":        (data.get("synopsis") or "")[:200],
-            "image_url":       image_url,
+            "title":            data.get("title", ""),
+            "productId":        data.get("productId", ""),
+            "broadcaster":      broadcaster,
+            "primary_genre":    primary_g,
+            "secondary_genre":  secondary_g,
+            "genres":           f"{primary_g},{secondary_g}" if secondary_g else primary_g,
+            "synopsis":         (data.get("synopsis") or "")[:200],
+            "image_url":        image_url,
+            "image_url_logo":   image_url_logo,
+            "age_rating":       classification,
         }
     except Exception as e:
         print(f"  Warning: could not fetch detail for {slug}: {e}")
