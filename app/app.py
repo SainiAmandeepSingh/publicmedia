@@ -421,112 +421,132 @@ with tab_recs:
     )
     st.divider()
 
-    # Programme card renderer
-    def render_card(item, user_profile, show_exp, show_score, col):
-        b       = item.get("broadcaster", "")
-        colour  = BROADCASTER_COLOURS.get(b, "#6B7A99")
+    # NPO-style card renderer
+    def render_card_npo(item, user_profile, show_exp, show_score, col):
+        b      = item.get("broadcaster", "")
+        colour = BROADCASTER_COLOURS.get(b, "#6B7A99")
         boosted = item.get("fairness_boosted", False)
-        genres  = item.get("genres") or []
+        genres = item.get("genres") or []
         if isinstance(genres, str):
             genres = parse_genres(genres)
-        title   = item.get("title", "")
+        title   = item.get("title", "").replace("<", "&lt;").replace(">", "&gt;")
         img_url = (item.get("image_url") or "").strip()
+        genre_text = "  ·  ".join(genres[:2]) if genres else ""
 
-        boost_badge = (
-            "<span style='font-size:0.62rem;color:#5BBF8A;font-weight:700;"
-            "background:rgba(91,191,138,0.15);padding:1px 6px;border-radius:3px;"
-            "border:1px solid rgba(91,191,138,0.3)'>&#x2B06; fairness boost</span>"
+        boost = (
+            "<div style='position:absolute;top:8px;right:8px;"
+            "background:#5BBF8A;color:white;font-size:0.58rem;font-weight:700;"
+            "padding:2px 7px;border-radius:3px'>&#x2B06; boost</div>"
         ) if boosted else ""
 
-        genre_chips = "".join(
-            "<span style='background:rgba(255,255,255,0.07);color:rgba(255,255,255,0.65);"
-            "padding:2px 7px;border-radius:4px;font-size:0.67rem;margin:1px 2px 0 0;"
-            "display:inline-block;border:1px solid rgba(255,255,255,0.10)'>"
-            + g + "</span>"
-            for g in genres
+        bc_badge = (
+            "<div style='position:absolute;bottom:8px;left:8px;"
+            "background:rgba(0,0,0,0.6);color:white;"
+            "font-size:0.6rem;font-weight:700;padding:2px 7px;border-radius:3px'>"
+            + b + "</div>"
         )
 
-        # Image — use st.image for reliability, then card body via markdown
+        overlay = (
+            "<div style='position:absolute;bottom:0;left:0;right:0;height:65%;"
+            "background:linear-gradient(transparent," + NPO_BG_DEEP + "DD)'>"
+            "<div style='position:absolute;bottom:10px;left:10px;right:52px;"
+            "font-size:0.88rem;font-weight:700;color:#FFFFFF;line-height:1.25'>"
+            + title + "</div>"
+            + bc_badge +
+            "</div>"
+        )
+
         if img_url:
-            col.markdown(
-                "<div style='border-radius:8px 8px 0 0;overflow:hidden;"
-                "border:1px solid " + NPO_BG_BORDER + ";border-bottom:none;"
-                "border-left:3px solid " + colour + ";margin-bottom:0'>",
-                unsafe_allow_html=True
+            card = (
+                "<div style='position:relative;border-radius:10px;"
+                "overflow:hidden;margin-bottom:4px'>"
+                "<img src='" + img_url + "' "
+                "style='width:100%;aspect-ratio:16/9;object-fit:cover;display:block'>"  
+                + overlay + boost +
+                "</div>"
             )
-            col.image(img_url, use_column_width="always")
-        
-        # Card body
-        card_html = (
-            "<div style='background:" + NPO_BG_CARD + ";border-radius:"
-            + ("0 0 8px 8px" if img_url else "8px") + ";"
-            "border:1px solid " + NPO_BG_BORDER + ";"
-            "border-left:3px solid " + colour + ";"
-            + ("border-top:none;" if img_url else "") +
-            "padding:0.65rem 0.75rem 0.7rem;margin-bottom:0.6rem'>"
-            "<div style='display:flex;align-items:center;"
-            "justify-content:space-between;margin-bottom:5px'>"
-            "<span style='background:" + colour + ";color:white;font-size:0.62rem;"
-            "font-weight:700;padding:1px 7px;border-radius:3px;letter-spacing:0.04em'>"
-            + b + "</span>"
-            + boost_badge +
-            "</div>"
-            "<div style='font-size:0.88rem;font-weight:600;color:#FFFFFF;"
-            "margin-bottom:5px;line-height:1.3'>" + title + "</div>"
-            "<div>" + genre_chips + "</div>"
-            "</div>"
-        )
-        col.markdown(card_html, unsafe_allow_html=True)
+        else:
+            card = (
+                "<div style='position:relative;border-radius:10px;"
+                "overflow:hidden;margin-bottom:4px;"
+                "background:" + NPO_BG_MID + ";aspect-ratio:16/9'>"
+                + overlay + boost +
+                "</div>"
+            )
 
+        col.markdown(card, unsafe_allow_html=True)
+
+        # Genre + reason below card — plain text, NPO style
+        meta = []
+        if genre_text:
+            meta.append(
+                "<span style='color:rgba(255,255,255,0.45);font-size:0.71rem'>"
+                + genre_text + "</span>"
+            )
         if show_exp:
             reason = get_primary_reason(item, user_profile)
+            r = reason[2:].strip() if reason and len(reason) > 2 else reason
+            meta.append(
+                "<span style='color:rgba(255,255,255,0.28);font-size:0.68rem'>"
+                + r + "</span>"
+            )
+        if meta:
             col.markdown(
-                "<p style='font-size:0.73rem;color:rgba(255,255,255,0.40);"
-                "margin:-10px 0 8px 4px;line-height:1.3'>" + reason + "</p>",
+                "<p style='margin:-2px 0 10px 2px;line-height:1.4'>" + "  ·  ".join(meta) + "</p>",
                 unsafe_allow_html=True)
+
         if show_score:
             details = get_feature_details(item, user_profile)
             with col.expander("Score breakdown"):
                 for k, v in details["score_breakdown"].items():
                     try:
-                        formatted = f"{float(v):.3f}"
+                        fmt = f"{float(v):.3f}"
                     except (TypeError, ValueError):
-                        formatted = str(v)
-                    st.write(f"**{k}:** {formatted}")
+                        fmt = str(v)
+                    st.write(f"**{k}:** {fmt}")
 
-    # Side by side columns
-    col_before, col_sep, col_after = st.columns([5, 1, 5])
+    def render_grid(items, user_profile, show_exp, show_score, suppress_score=False):
+        for row_start in range(0, len(items), 3):
+            row = items[row_start:row_start + 3]
+            cols = st.columns(3)
+            for ci, item in enumerate(row):
+                render_card_npo(item, user_profile, show_exp,
+                                False if suppress_score else show_score,
+                                cols[ci])
 
-    with col_before:
-        st.markdown(f"""
-<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-  <div style="width:9px;height:9px;background:#E05252;border-radius:50%;flex-shrink:0"></div>
-  <span style="font-size:0.92rem;font-weight:700">CTR Only  ·  No Fairness Correction</span>
-</div>
-<p style="font-size:0.76rem;color:{NPO_WHITE_DIM};margin:0 0 10px 17px">
-  EG {eg_before:.3f}  ·  ILS {ils_before:.3f}</p>
-""", unsafe_allow_html=True)
-        for item in baseline_top.to_dict('records'):
-            # Score breakdown suppressed on before column — no fairness score computed
-            render_card(item, user_profile, show_explanations, False, col_before)
+    # Section headers
+    hl, hr = st.columns(2)
+    with hl:
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:8px;margin-bottom:4px'>"
+            "<div style='width:9px;height:9px;background:#E05252;border-radius:50%'></div>"
+            "<span style='font-size:0.9rem;font-weight:700'>CTR Only  ·  No Fairness Correction</span>"
+            "</div>"
+            f"<p style='font-size:0.73rem;color:{NPO_WHITE_DIM};margin:0 0 8px 17px'>"
+            f"EG {eg_before:.3f}  ·  ILS {ils_before:.3f}</p>",
+            unsafe_allow_html=True)
+    with hr:
+        st.markdown(
+            "<div style='display:flex;align-items:center;gap:8px;margin-bottom:4px'>"
+            "<div style='width:9px;height:9px;background:#5BBF8A;border-radius:50%'></div>"
+            f"<span style='font-size:0.9rem;font-weight:700'>After Re-ranking  ·  λ = {lambda_val:.2f}</span>"
+            "</div>"
+            f"<p style='font-size:0.73rem;color:{NPO_WHITE_DIM};margin:0 0 8px 17px'>"
+            f"EG {eg_after:.3f}  ·  ILS {ils_after:.3f}</p>",
+            unsafe_allow_html=True)
 
-    with col_sep:
-        st.markdown(f'<div style="width:1px;background:{NPO_BG_BORDER};min-height:500px;margin:30px auto 0 auto"></div>',
-                    unsafe_allow_html=True)
-
-    with col_after:
-        st.markdown(f"""
-<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-  <div style="width:9px;height:9px;background:#5BBF8A;border-radius:50%;flex-shrink:0"></div>
-  <span style="font-size:0.92rem;font-weight:700">After Re-ranking  ·  Fairness Weight λ = {lambda_val:.2f}</span>
-</div>
-<p style="font-size:0.76rem;color:{NPO_WHITE_DIM};margin:0 0 10px 17px">
-  EG {eg_after:.3f}  ·  ILS {ils_after:.3f}</p>
-""", unsafe_allow_html=True)
-        for item in final_df.to_dict('records'):
-            render_card(item, user_profile, show_explanations, show_scores, col_after)
-
-    st.divider()
+    # Before / After grids
+    gl, gm, gr = st.columns([9, 1, 9])
+    with gl:
+        render_grid(baseline_top.to_dict("records"), user_profile,
+                    show_explanations, show_scores, suppress_score=True)
+    with gm:
+        st.markdown(
+            f"<div style='width:1px;background:{NPO_BG_BORDER};min-height:400px;margin:0 auto'></div>",
+            unsafe_allow_html=True)
+    with gr:
+        render_grid(final_df.to_dict("records"), user_profile,
+                    show_explanations, show_scores)
 
     # Broadcaster share bar
     label("Broadcaster share in re-ranked list")
