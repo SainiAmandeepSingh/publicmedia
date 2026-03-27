@@ -421,40 +421,42 @@ with tab_recs:
     )
     st.divider()
 
-    # NPO-style card renderer
+    # NPO-style card: image fills card, broadcaster badge top-left, 2 info lines below
     def render_card_npo(item, user_profile, show_exp, show_score, col):
-        b      = item.get("broadcaster", "")
-        colour = BROADCASTER_COLOURS.get(b, "#6B7A99")
+        b       = item.get("broadcaster", "")
+        colour  = BROADCASTER_COLOURS.get(b, "#6B7A99")
         boosted = item.get("fairness_boosted", False)
-        genres = item.get("genres") or []
+        genres  = item.get("genres") or []
         if isinstance(genres, str):
             genres = parse_genres(genres)
         title   = item.get("title", "").replace("<", "&lt;").replace(">", "&gt;")
         img_url = (item.get("image_url") or "").strip()
         genre_text = "  ·  ".join(genres[:2]) if genres else ""
 
+        # Fairness boost badge — top-right
         boost = (
             "<div style='position:absolute;top:8px;right:8px;"
-            "background:#5BBF8A;color:white;font-size:0.58rem;font-weight:700;"
-            "padding:2px 7px;border-radius:3px'>&#x2B06; boost</div>"
+            "background:#5BBF8A;color:white;font-size:0.6rem;font-weight:700;"
+            "padding:2px 8px;border-radius:3px;z-index:2'>&#x2B06; boost</div>"
         ) if boosted else ""
 
+        # Broadcaster badge — top-left, coloured
         bc_badge = (
             "<div style='position:absolute;top:8px;left:8px;"
             "background:" + colour + ";color:white;"
-            "font-size:0.6rem;font-weight:700;padding:2px 7px;border-radius:4px;"
-            "letter-spacing:0.04em'>"
+            "font-size:0.6rem;font-weight:700;padding:2px 8px;border-radius:4px;"
+            "letter-spacing:0.04em;z-index:2'>"
             + b + "</div>"
         )
 
-        overlay = (
-            "<div style='position:absolute;bottom:0;left:0;right:0;height:65%;"
-            "background:linear-gradient(transparent," + NPO_BG_DEEP + "DD)'>"
-            "<div style='position:absolute;bottom:8px;left:8px;right:8px;"
-            "font-size:0.85rem;font-weight:700;color:#FFFFFF;line-height:1.25;"
-            "text-shadow:0 1px 3px rgba(0,0,0,0.8)'>"
+        # Title gradient overlay at bottom of image
+        title_overlay = (
+            "<div style='position:absolute;bottom:0;left:0;right:0;height:55%;"
+            "background:linear-gradient(transparent," + NPO_BG_DEEP + "EE)'></div>"
+            "<div style='position:absolute;bottom:8px;left:10px;right:10px;"
+            "font-size:0.87rem;font-weight:700;color:#FFFFFF;line-height:1.2;"
+            "text-shadow:0 1px 4px rgba(0,0,0,0.9)'>"
             + title + "</div>"
-            "</div>"
         )
 
         if img_url:
@@ -462,8 +464,8 @@ with tab_recs:
                 "<div style='position:relative;border-radius:10px;"
                 "overflow:hidden;margin-bottom:4px'>"
                 "<img src='" + img_url + "' "
-                "style='width:100%;aspect-ratio:16/9;object-fit:cover;display:block'>"  
-                + overlay + boost +
+                "style='width:100%;aspect-ratio:16/9;object-fit:cover;display:block'>"
+                + bc_badge + boost + title_overlay +
                 "</div>"
             )
         else:
@@ -471,32 +473,35 @@ with tab_recs:
                 "<div style='position:relative;border-radius:10px;"
                 "overflow:hidden;margin-bottom:4px;"
                 "background:" + NPO_BG_MID + ";aspect-ratio:16/9'>"
-                + overlay + boost +
+                + bc_badge + boost + title_overlay +
                 "</div>"
             )
 
         col.markdown(card, unsafe_allow_html=True)
 
-        # Genre + reason below card — plain text, NPO style
-        meta = []
+        # Line 1: genre — always shown
         if genre_text:
-            meta.append(
-                "<span style='color:rgba(255,255,255,0.45);font-size:0.71rem'>"
-                + genre_text + "</span>"
-            )
+            col.markdown(
+                "<p style='margin:2px 0 0 2px;font-size:0.72rem;"
+                "color:rgba(255,255,255,0.50);white-space:nowrap;"
+                "overflow:hidden;text-overflow:ellipsis'>"
+                + genre_text + "</p>",
+                unsafe_allow_html=True)
+
+        # Line 2: explanation reason — always shown when show_exp
         if show_exp:
             reason = get_primary_reason(item, user_profile)
+            # Strip the emoji and clean up
             r = reason[2:].strip() if reason and len(reason) > 2 else reason
-            meta.append(
-                "<span style='color:rgba(255,255,255,0.28);font-size:0.68rem'>"
-                + r + "</span>"
-            )
-        if meta:
             col.markdown(
-                "<p style='margin:-2px 0 10px 2px;white-space:nowrap;"
-                "overflow:hidden;text-overflow:ellipsis;font-size:0.71rem'>"
-                + "  ·  ".join(meta) + "</p>",
+                "<p style='margin:2px 0 10px 2px;font-size:0.68rem;"
+                "color:rgba(255,255,255,0.30);white-space:nowrap;"
+                "overflow:hidden;text-overflow:ellipsis'>"
+                + r + "</p>",
                 unsafe_allow_html=True)
+        else:
+            # Always maintain spacing below card even without explanation
+            col.markdown("<div style='margin-bottom:10px'></div>", unsafe_allow_html=True)
 
         if show_score:
             details = get_feature_details(item, user_profile)
@@ -508,10 +513,11 @@ with tab_recs:
                         fmt = str(v)
                     st.write(f"**{k}:** {fmt}")
 
+    # 2-column grid per side (wider cards, closer to real NPO)
     def render_grid(items, user_profile, show_exp, show_score, suppress_score=False):
-        for row_start in range(0, len(items), 3):
-            row = items[row_start:row_start + 3]
-            cols = st.columns(3)
+        for row_start in range(0, len(items), 2):
+            row = items[row_start:row_start + 2]
+            cols = st.columns(2)
             for ci, item in enumerate(row):
                 render_card_npo(item, user_profile, show_exp,
                                 False if suppress_score else show_score,
