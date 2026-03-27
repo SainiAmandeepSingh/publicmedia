@@ -399,13 +399,18 @@ with tab_recs:
     c1.metric("Exposure Gap Baseline",   f"{eg_before:.3f}")
     c2.metric("Exposure Gap After",      f"{eg_after:.3f}",
               delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
-    c3.metric("EG Improvement", f"{eg_improve:.0f}%" if eg_improve is not None else "N/A")
+    c3.metric(
+        "EG Improvement",
+        f"{eg_improve:.0f}%" if eg_improve is not None else "N/A",
+        delta="Better" if (eg_improve is not None and eg_improve > 0) else ("Worse" if (eg_improve is not None and eg_improve < 0) else None),
+        delta_color="normal" if (eg_improve is not None and eg_improve > 0) else "inverse",
+    )
     c4.metric(
         "ILS Change",
         f"{ils_before - ils_after:+.3f}",
-        help="Intra-List Similarity change after re-ranking. Negative = more diverse list (lower ILS). Positive = less diverse.",
-        delta=f"{ils_before - ils_after:+.3f}",
-        delta_color="inverse",
+        help="Intra-List Similarity change. Negative = more genre diversity (good). Positive = less diversity.",
+        delta=f"{'More diverse' if ils_before - ils_after > 0 else 'Less diverse' if ils_before - ils_after < 0 else 'No change'}",
+        delta_color="normal" if ils_before - ils_after > 0 else "inverse",
     )
     st.divider()
 
@@ -551,7 +556,12 @@ with tab_fair:
     m1.metric("EG Baseline (CTR only)", f"{eg_before:.3f}")
     m2.metric("EG After Re-ranking",    f"{eg_after:.3f}",
               delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
-    m3.metric("EG Improvement", f"{eg_improve:.0f}%" if eg_improve is not None else "N/A")
+    m3.metric(
+        "EG Improvement",
+        f"{eg_improve:.0f}%" if eg_improve is not None else "N/A",
+        delta="Better" if (eg_improve is not None and eg_improve > 0) else ("Worse" if (eg_improve is not None and eg_improve < 0) else None),
+        delta_color="normal" if (eg_improve is not None and eg_improve > 0) else "inverse",
+    )
     st.divider()
 
     # Before / after charts
@@ -595,7 +605,7 @@ with tab_fair:
     st.divider()
 
     # Lambda calibration chart
-    label("λ Calibration — Grid Search over Fairness Weight")
+    label("λ Calibration · Grid Search over Fairness Weight")
     st.markdown(
         f"<p style='font-size:0.8rem;color:rgba(255,255,255,0.45);margin-bottom:0.75rem'>"
         "EG is computed for every λ value in [0,1]. The optimal λ is the lowest value that "
@@ -648,7 +658,7 @@ with tab_fair:
             'Catalogue Share':      f"{cat_share.get(b, 0):.1%}",
             'Rec Share (baseline)': f"{rec_share_baseline.get(b, 0):.1%}",
             'Fairness Correction':  f"{fc:.4f}",
-            'Status': '✅ Underrepresented — boosted' if fc > 0 else '⚠️ Overexposed — no boost',
+            'Status': '✅ Underrepresented' if fc > 0 else '⚠️ Overexposed',
         })
     st.dataframe(pd.DataFrame(fc_rows), use_container_width=True, hide_index=True)
     st.divider()
@@ -680,7 +690,7 @@ with tab_fair:
 # TAB 3 — DIVERSITY  (Padma Dhuney)
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_div:
-    section_header("Diversity Dashboard", "Padma Dhuney  ·  Coming soon", "#3AAEA0")
+    section_header("Diversity Dashboard", "Coming soon", "#3AAEA0")
     st.markdown(f"""
 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
             min-height:340px;background:{NPO_BG_CARD};border-radius:12px;
@@ -689,7 +699,7 @@ with tab_div:
   <h3 style="color:{NPO_WHITE};font-size:1.1rem;font-weight:700;margin:0 0 8px 0">
     Diversity Dashboard</h3>
   <p style="color:{NPO_WHITE_DIM};font-size:0.88rem;text-align:center;max-width:380px;margin:0">
-    Padma Dhuney's section — ILS-based diversity re-ranking is already active
+    ILS-based diversity re-ranking is already active
     in the pipeline at Stage 2. Full dashboard coming here.</p>
   <div style="margin-top:1.5rem;display:flex;gap:1.5rem">
     <div style="text-align:center">
@@ -712,7 +722,7 @@ with tab_div:
 # TAB 4 — MY PROFILE  (Kiron Putman)
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_profile:
-    section_header("My Profile — Autonomy", "Kiron Putman  ·  Coming soon", "#8A6CC7")
+    section_header("My Profile", "Coming soon", "#8A6CC7")
     st.markdown(f"""
 <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
             min-height:340px;background:{NPO_BG_CARD};border-radius:12px;
@@ -721,7 +731,7 @@ with tab_profile:
   <h3 style="color:{NPO_WHITE};font-size:1.1rem;font-weight:700;margin:0 0 8px 0">
     User Profile and Autonomy Controls</h3>
   <p style="color:{NPO_WHITE_DIM};font-size:0.88rem;text-align:center;max-width:380px;margin:0">
-    Kiron Putman's section — λ slider and genre preferences are already wired
+    λ slider and genre preferences are already wired
     into the sidebar and feed the pipeline. Full profile editor coming here.</p>
   <div style="margin-top:1.5rem;display:flex;gap:1.5rem">
     <div style="text-align:center">
