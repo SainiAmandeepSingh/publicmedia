@@ -244,6 +244,12 @@ def save_outputs(items: list[dict]) -> None:
     with open(rs_path, "w") as f:
         json.dump(rec_share, f, indent=2)
     print(f"  Saved rec_share: {rs_path}")
+
+    # rec_share broadcaster distribution
+    print(f"\n  Broadcaster distribution (rec_share):")
+    for bc, share in sorted(rec_share.items(), key=lambda x: -x[1]):
+        bar = "█" * int(share * 40)
+        print(f"    {bc:12s} {share:.3f}  {bar}")
     print(f"\n  Broadcaster distribution (rec_share):")
     for bc, share in sorted(rec_share.items(), key=lambda x: -x[1]):
         bar = "█" * int(share * 40)
@@ -252,20 +258,124 @@ def save_outputs(items: list[dict]) -> None:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+
+# ── Real catalogue share from broadcaster pages ───────────────────────────────
+
+# Broadcaster page slugs on NPO Start — used to fetch their real catalogue
+BROADCASTER_PAGE_SLUGS = [
+    "avrotros", "bnnvara", "kro-ncrv", "max", "ntr", "eo", "vpro",
+]
+
+def fetch_broadcaster_catalogue_counts() -> dict:
+    """
+    Fetch real catalogue item counts per broadcaster from their NPO Start pages.
+    Uses page-layout + page-collection endpoints to count unique series/programmes
+    each broadcaster has published on NPO Start.
+
+    Returns:
+        dict: {BroadcasterName: catalogue_share (float)} normalised to sum to 1.0
+
+    This is used as cat_share in the Exposure Gap formula, replacing the
+    hardcoded REAL_CAT_SHARE estimates in app.py. Having empirically-derived
+    cat_share makes the fairness measurement academically robust.
+    """
+    counts = {}
+
+    for slug in BROADCASTER_PAGE_SLUGS:
+        print(f"  Fetching catalogue for: {slug} ...", end=" ")
+
+        # Step 1: Get the broadcaster's page layout (list of collection GUIDs)
+        url = f"{BASE_URL}/page-layout"
+        params = {
+            "layoutId":             slug,
+            "layoutType":           "PAGE",
+            "includePremiumContent": "true",
+            "partyId":               PARTY_ID,
+        }
+        try:
+            r = requests.get(url, params=params, headers=HEADERS, timeout=15)
+            r.raise_for_status()
+            layout = r.json()
+        except Exception as e:
+            print(f"skipped ({e})")
+            continue
+
+        broadcaster_name = layout.get("title", slug.upper())
+        collections = [
+            c for c in layout.get("collections", [])
+            if c.get("type") in ("SERIES", "PROGRAM")
+        ]
+
+        if not collections:
+            print("no collections")
+            continue
+
+        # Step 2: Fetch each collection and count unique items
+        seen_slugs = set()
+        for col in collections:
+            col_url = f"{BASE_URL}/page-collection"
+            col_params = {
+                "collectionId":          col["collectionId"],
+                "collectionType":        col["type"],
+                "includePremiumContent": "true",
+                "layoutType":            "PAGE",
+                "partyId":               PARTY_ID,
+            }
+            try:
+                rc = requests.get(col_url, params=col_params, headers=HEADERS, timeout=15)
+                rc.raise_for_status()
+                col_data = rc.json()
+                for item in col_data.get("items", []):
+                    if item.get("slug"):
+                        seen_slugs.add(item["slug"])
+            except Exception:
+                pass
+            time.sleep(0.2)
+
+        counts[broadcaster_name] = len(seen_slugs)
+        print(f"{len(seen_slugs)} unique items")
+        time.sleep(0.4)
+
+    if not counts:
+        print("  Warning: no broadcaster catalogue data fetched. Using fallback estimates.")
+        return {}
+
+    total = sum(counts.values())
+    cat_share = {bc: round(count / total, 4) for bc, count in counts.items()}
+
+    print(f"\n  Total catalogue items: {total}")
+    print(f"  Real cat_share:")
+    for bc, share in sorted(cat_share.items(), key=lambda x: -x[1]):
+        bar = "█" * int(share * 30)
+        print(f"    {bc:12s} {share:.3f}  {bar}  ({counts[bc]} items)")
+
+    return cat_share
+
+
 def main():
     print("=" * 60)
     print("NPO Start — Data Collection Script")
     print("Fetching real recommendation data from npo.nl/start/api")
     print("=" * 60)
 
-    print("\n[1/3] Collecting recommendation collection slugs...")
+    print("\n[1/4] Collecting recommendation collection slugs...")
     slugs = collect_all_slugs()
 
-    print(f"\n[2/3] Fetching series-detail for {len(slugs)} slugs...")
+    print(f"\n[2/4] Fetching series-detail for {len(slugs)} slugs...")
     enriched = enrich_with_details(slugs)
 
-    print(f"\n[3/3] Saving outputs to {OUTPUT_DIR}...")
+    print(f"\n[3/4] Saving observation outputs to {OUTPUT_DIR}...")
     save_outputs(enriched)
+
+    print(f"\n[4/4] Fetching real catalogue share from broadcaster pages...")
+    cat_share = fetch_broadcaster_catalogue_counts()
+    if cat_share:
+        cs_path = OUTPUT_DIR / "cat_share.json"
+        with open(cs_path, "w") as f:
+            json.dump(cat_share, f, indent=2)
+        print(f"\n  Saved cat_share: {cs_path}")
+        print("  This replaces the hardcoded REAL_CAT_SHARE in app.py with empirically")
+        print("  derived proportions from NPO Start\'s actual broadcaster catalogue pages.")
 
     print("\nDone! You can now run the app:")
     print("  streamlit run app/app.py")

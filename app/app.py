@@ -169,18 +169,21 @@ hr {{ border-color: {NPO_BG_BORDER} !important; opacity: 0.5 !important; }}
 # ── Data loading ──────────────────────────────────────────────────────────────
 DATA_DIR = Path(__file__).parent.parent / "data" / "processed"
 
-# Real NPO broadcaster catalogue share — based on actual NPO portfolio sizes.
-# Used as the fairness baseline: what proportion of the total catalogue each
-# broadcaster owns. Kept separate from rec_share so EG is always meaningful.
-# Source: NPO annual reports and POMS catalogue proportions (Mediawet 2008 members).
-REAL_CAT_SHARE = {
-    "AVROTROS": 0.28,
-    "BNNVARA":  0.20,
-    "KRO-NCRV": 0.18,
-    "MAX":       0.12,
-    "NTR":       0.10,
-    "EO":        0.07,
-    "VPRO":      0.05,
+# Real NPO broadcaster catalogue share — derived from NPO Start broadcaster pages
+# via the page-layout + page-collection API (fetched by data_loader.py).
+# Falls back to hardcoded estimates if cat_share.json is not available.
+# Source: live NPO Start API (npo.nl/start/api/domain/page-layout?layoutId=<broadcaster>)
+# Fetched values (719 items across 7 broadcasters):
+#   EO: 29.9%, VPRO: 18.5%, KRO-NCRV: 17.9%, BNNVARA: 14.9%,
+#   NTR: 8.9%, MAX: 5.3%, AVROTROS: 4.6%
+REAL_CAT_SHARE_FALLBACK = {
+    "AVROTROS": 0.0459,
+    "BNNVARA":  0.1488,
+    "EO":       0.2990,
+    "KRO-NCRV": 0.1794,
+    "MAX":       0.0529,
+    "NTR":       0.0890,
+    "VPRO":      0.1850,
 }
 
 @st.cache_data
@@ -198,10 +201,19 @@ def load_all():
         # Load rec_share from real NPO Start observation data
         rec_share_bl = json.loads(rs_path.read_text()) if rs_path.exists() \
                        else compute_rec_share(cat)
-        # Use known real catalogue proportions — NOT computed from the small
-        # 89-item sample, which would make cat_share == rec_share and EG = 0
-        cat_share = REAL_CAT_SHARE
-        data_source = f"🟢 Real data · {len(cat)} NPO series"
+        # Load real catalogue share from data_loader.py output if available.
+        # This uses empirically-derived proportions from NPO Start's broadcaster
+        # pages (page-layout + page-collection API), giving the most accurate
+        # cat_share for the Exposure Gap computation.
+        cs_path = DATA_DIR / "cat_share.json"
+        if cs_path.exists():
+            cat_share = json.loads(cs_path.read_text())
+        else:
+            # Fallback to hardcoded estimates from NPO Start API (March 2026)
+            cat_share = REAL_CAT_SHARE_FALLBACK
+        cs_path2 = DATA_DIR / "cat_share.json"
+        cat_share_note = " · real catalogue" if cs_path2.exists() else " · estimated catalogue"
+        data_source = f"🟢 Real data · {len(cat)} NPO series{cat_share_note}"
     else:
         cat = generate_catalogue(n_items=300, seed=42)
         obs = generate_observation_sample(cat, n_sessions=200, seed=42)
