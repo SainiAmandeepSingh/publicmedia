@@ -454,7 +454,7 @@ with tab_recs:
                 "border-left:3px solid " + colour + ";margin-bottom:0'>",
                 unsafe_allow_html=True
             )
-            col.image(img_url, use_container_width=True)
+            col.image(img_url, use_column_width="always")
         
         # Card body
         card_html = (
