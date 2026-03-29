@@ -111,13 +111,13 @@ ALGORITHM_EXPLAINER = """
 
 NPO Start's recommender system is built on four public values.
 
-1. **Relevance** · Content is matched to your viewing history and genre preferences. The more you engage, the more personalised your list becomes.
+1. **Relevance:** Content is matched to your viewing history and genre preferences. The more you engage, the more personalised your list becomes.
 
-2. **Diversity** · Your list is adjusted to include a range of genres so you are not shown only one type of content.
+2. **Diversity:** Your list is adjusted to include a range of genres so you are not shown only one type of content.
 
-3. **Fairness** · Smaller broadcasters such as VPRO, NTR, and EO are boosted when underrepresented relative to their catalogue share, as required by the Mediawet 2008.
+3. **Fairness:** Smaller broadcasters such as VPRO, NTR, and EO are boosted when underrepresented relative to their catalogue share, as required by the Mediawet 2008.
 
-4. **Your control** · You can adjust the fairness weight, set preferred genres, and control how strongly the system personalises for you using the sidebar.
+4. **Your control:** You can adjust the fairness weight, set preferred genres, and control how strongly the system personalises for you using the sidebar.
 """
 
 

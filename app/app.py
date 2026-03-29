@@ -782,7 +782,7 @@ with tab_fair:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 3 — DIVERSITY  (Padma Dhuney)
+# TAB 3 — DIVERSITY  
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_div:
     section_header("Diversity Dashboard", "Padma Dhuney  ·  Coming soon", "#3AAEA0")
