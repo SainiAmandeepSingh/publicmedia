@@ -109,15 +109,23 @@ def get_feature_details(item: dict, user_profile: dict) -> dict:
 ALGORITHM_EXPLAINER = """
 **How does NPO Start recommend content?**
 
-This prototype integrates four public values into a single recommendation pipeline, each serving a distinct role in shaping what you see.
+This prototype integrates four public values into a single recommendation pipeline.
 
-**Relevance** · Your recommendations are matched to your viewing history and genre preferences using content-based similarity scoring. The more content you engage with, the more your list reflects your taste.
+**The four stages:**
+- **Relevance** · Content matched to your viewing history and genre preferences
+- **Diversity** · Genre variety ensured across your list using ILS re-ranking
+- **Fairness** · Underrepresented broadcasters (VPRO, NTR, EO) boosted to meet Mediawet 2008
+- **Transparency** · Every card shows a short reason for the recommendation
 
-**Diversity** · A genre-aware re-ranking step ensures your list includes a range of content types, so you are not shown the same kind of programme repeatedly.
+**Key metrics:**
+- **EG (Exposure Gap)** · How far each broadcaster deviates from its catalogue share. Lower is fairer
+- **ILS (Intra-List Similarity)** · How similar items are across your list. Lower means more diverse
 
-**Fairness** · Smaller broadcasters such as VPRO, NTR, and EO receive an algorithmic boost when their content is underrepresented relative to their share of the NPO catalogue. This is required under the Mediawet 2008 mandate for balanced broadcaster representation, and is measured using the Exposure Gap (EG) metric.
-
-**Your control** · You can adjust the fairness weight (λ), set preferred genres, and control how strongly the system personalises for you using the controls in the sidebar. A minimum fairness weight of 0.10 is always enforced to meet NPO's public service obligations.
+**Sidebar controls:**
+- **Fairness weight (λ)** · Higher = stronger fairness correction. Minimum 0.10 always enforced
+- **Diversity strength** · Higher = more genre variety across your list
+- **Genre preferences** · Your explicit choices override behavioural inference
+- **Viewer persona** · Try Varied Consumer for EG reduction, or Documentary Nerd for the fairness-relevance tension
 """
 
 
