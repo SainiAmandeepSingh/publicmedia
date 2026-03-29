@@ -1,4 +1,5 @@
 # src/scoring.py
+# Code Implemented AmanDeep Singh
 # Base content-based scoring using cosine similarity
 # Consistent with Week 5 course materials (Nearest Neighbour)
 

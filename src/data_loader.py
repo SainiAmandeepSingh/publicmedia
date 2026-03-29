@@ -1,4 +1,5 @@
 # src/data_loader.py
+# Owner: AmanDeep Singh
 # NPO Start — Real Data Loader
 # Fetches real recommendation data from NPO Start's public API.
 # No authentication required. Run this script locally before starting the app.

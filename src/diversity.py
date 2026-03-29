@@ -1,7 +1,6 @@
 # src/diversity.py
-# Owner: Padma Dhuney
+# Code Implemented by AmanDeep Singh
 # Public Value: Diversity — content variety for users
-#
 # Implements diversity-aware re-ranking using Intra-List Similarity (ILS).
 # Lower ILS = more diverse recommendation list.
 # Uses Jaccard distance on genre tags as the similarity measure,
