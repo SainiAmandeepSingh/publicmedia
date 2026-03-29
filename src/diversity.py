@@ -81,6 +81,7 @@ def rerank_for_diversity(
     original_order = df['item_id'].tolist()
 
     selected = []
+    selected_scores = []
     remaining = df.to_dict(orient='records')
 
     while len(selected) < top_n and remaining:
@@ -102,9 +103,11 @@ def rerank_for_diversity(
                 best_item = item
 
         selected.append(best_item)
+        selected_scores.append(best_score)
         remaining.remove(best_item)
 
     result_df = pd.DataFrame(selected)
+    result_df['current_score'] = selected_scores
     result_df['diversity_penalised'] = ~result_df['item_id'].isin(
         original_order[:top_n]
     )

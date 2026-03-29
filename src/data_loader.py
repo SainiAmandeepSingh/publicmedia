@@ -251,10 +251,6 @@ def save_outputs(items: list[dict]) -> None:
     for bc, share in sorted(rec_share.items(), key=lambda x: -x[1]):
         bar = "█" * int(share * 40)
         print(f"    {bc:12s} {share:.3f}  {bar}")
-    print(f"\n  Broadcaster distribution (rec_share):")
-    for bc, share in sorted(rec_share.items(), key=lambda x: -x[1]):
-        bar = "█" * int(share * 40)
-        print(f"    {bc:12s} {share:.3f}  {bar}")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────

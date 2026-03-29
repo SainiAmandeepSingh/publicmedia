@@ -49,6 +49,10 @@ BROADCASTER_COLOURS = {
     'NTR':      '#8A6CC7',
     'EO':       '#5BBF8A',
     'BNNVARA':  '#D4A843',
+    'PowNed':   '#A0A0A0',
+    'WNL':      '#8B7355',
+    'HUMAN':    '#5E9E6E',
+    'NPO Zapp': '#E07B39',
 }
 
 # ── Global CSS ────────────────────────────────────────────────────────────────
@@ -211,8 +215,7 @@ def load_all():
         else:
             # Fallback to hardcoded estimates from NPO Start API (March 2026)
             cat_share = REAL_CAT_SHARE_FALLBACK
-        cs_path2 = DATA_DIR / "cat_share.json"
-        cat_share_note = " · real catalogue" if cs_path2.exists() else " · estimated catalogue"
+        cat_share_note = " · real catalogue" if cs_path.exists() else " · estimated catalogue"
         data_source = f"🟢 Real data · {len(cat)} NPO series{cat_share_note}"
     else:
         cat = generate_catalogue(n_items=300, seed=42)
@@ -238,7 +241,6 @@ def run_pipeline(user_profile, lambda_weight, diversity_factor, top_n):
     scored['current_score'] = scored['base_score']
     diverse = rerank_for_diversity(
         scored.head(top_n * 6), top_n=top_n * 2, diversity_factor=diversity_factor)
-    diverse['current_score'] = diverse['base_score']
     final = rerank_for_fairness(
         diverse, cat_share, rec_share_baseline, lambda_weight=lambda_weight
     ).head(top_n)
