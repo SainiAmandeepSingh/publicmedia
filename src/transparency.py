@@ -109,15 +109,15 @@ def get_feature_details(item: dict, user_profile: dict) -> dict:
 ALGORITHM_EXPLAINER = """
 **How does NPO Start recommend content?**
 
-NPO Start's recommender system is built on four public values.
+This prototype integrates four public values into a single recommendation pipeline, each serving a distinct role in shaping what you see.
 
-1. **Relevance:** Content is matched to your viewing history and genre preferences. The more you engage, the more personalised your list becomes.
+**Relevance** · Your recommendations are matched to your viewing history and genre preferences using content-based similarity scoring. The more content you engage with, the more your list reflects your taste.
 
-2. **Diversity:** Your list is adjusted to include a range of genres so you are not shown only one type of content.
+**Diversity** · A genre-aware re-ranking step ensures your list includes a range of content types, so you are not shown the same kind of programme repeatedly.
 
-3. **Fairness:** Smaller broadcasters such as VPRO, NTR, and EO are boosted when underrepresented relative to their catalogue share, as required by the Mediawet 2008.
+**Fairness** · Smaller broadcasters such as VPRO, NTR, and EO receive an algorithmic boost when their content is underrepresented relative to their share of the NPO catalogue. This is required under the Mediawet 2008 mandate for balanced broadcaster representation, and is measured using the Exposure Gap (EG) metric.
 
-4. **Your control:** You can adjust the fairness weight, set preferred genres, and control how strongly the system personalises for you using the sidebar.
+**Your control** · You can adjust the fairness weight (λ), set preferred genres, and control how strongly the system personalises for you using the controls in the sidebar. A minimum fairness weight of 0.10 is always enforced to meet NPO's public service obligations.
 """
 
 
