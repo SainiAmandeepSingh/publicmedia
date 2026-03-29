@@ -1,6 +1,6 @@
 # src/fairness.py
-# Owner: AmanDeep Singh
-# Public Value: Fairness — equitable broadcaster exposure
+# Author: AmanDeep Singh
+# Public Value: Fairness · equitable broadcaster exposure
 #
 # Implements the broadcaster-aware re-ranking algorithm from the research proposal.
 # Measures and corrects the Exposure Gap (EG) between broadcaster catalogue share
@@ -83,7 +83,7 @@ def rerank_for_fairness(
     cat_share: dict,
     rec_share: dict,
     lambda_weight: float = 0.5,
-    lambda_min: float = 0.1,  # Mediawet 2008 floor — cannot be set to 0
+    lambda_min: float = 0.1,  # Mediawet 2008 floor · cannot be set to 0
 ) -> pd.DataFrame:
     """
     Apply fairness re-ranking to a candidate list.

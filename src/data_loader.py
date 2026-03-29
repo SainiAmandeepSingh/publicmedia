@@ -1,7 +1,7 @@
 # src/data_loader.py
-# Owner: AmanDeep Singh
+# Author: AmanDeep Singh
 #
-# NPO Start — Real Data Loader
+# NPO Start · Real Data Loader
 # Fetches real recommendation data from NPO Start's public API.
 # No authentication required. Run this script locally before starting the app.
 #
@@ -9,13 +9,13 @@
 #   python src/data_loader.py
 #
 # Output:
-#   data/processed/catalogue.csv       — real NPO Start series with broadcaster + genre
-#   data/processed/observations.csv    — same items as rec_share observation baseline
-#   data/processed/rec_share.json      — broadcaster share dict ready for fairness.py
+#   data/processed/catalogue.csv       real NPO Start series with broadcaster and genre
+#   data/processed/observations.csv    recommendation observation baseline
+#   data/processed/rec_share.json      broadcaster share dict used by fairness.py
 #
 # API endpoints used (public, no auth):
-#   https://npo.nl/start/api/domain/recommendation-collection  — what NPO Start recommends
-#   https://npo.nl/start/api/domain/series-detail              — broadcaster + genre per slug
+#   https://npo.nl/start/api/domain/recommendation-collection  · what NPO Start recommends
+#   https://npo.nl/start/api/domain/series-detail              · broadcaster + genre per slug
 
 import requests
 import pandas as pd
@@ -31,7 +31,7 @@ OUTPUT_DIR = Path(__file__).parent.parent / "data" / "processed"
 
 # The four anonymous recommendation rows on NPO Start's homepage.
 # These are the exact collectionIds observed in NPO Start's network requests.
-# They represent what the CTR-optimised system shows anonymous users —
+# They represent what the CTR-optimised system shows anonymous users ·
 # i.e. the pre-intervention baseline for the Exposure Gap measurement.
 # All public recommendation rows on NPO Start's homepage.
 # Fetching all 11 rows gives ~200-250 unique series for a more reliable
@@ -53,7 +53,7 @@ COLLECTION_IDS = [
     ("youth-6-12-v0",               "SERIES"),   # children 6-12
 ]
 
-# Anonymous party ID — generates a fresh one each session, any value works
+# Anonymous party ID · generates a fresh one each session, any value works
 PARTY_ID = "1%3Amm8465af%3A6b24c4cff4804534a3e3a376b40cbb0f"
 
 HEADERS = {
@@ -142,17 +142,17 @@ def fetch_series_detail(slug: str) -> dict | None:
         if not data or not isinstance(data, dict) or not data.get("title"):
             return None
 
-        # Extract broadcaster — NPO Start returns a list, take the first
+        # Extract broadcaster · NPO Start returns a list, take the first
         broadcasters = [b.get("name", "") for b in data.get("broadcasters", [])]
         broadcaster  = broadcasters[0] if broadcasters else "UNKNOWN"
 
-        # Extract genres — primary + first secondary
+        # Extract genres · primary + first secondary
         genres      = data.get("genres", [])
         primary_g   = genres[0].get("name", "") if genres else ""
         secondaries = genres[0].get("secondaries", []) if genres else []
         secondary_g = secondaries[0].get("name", "") if secondaries else ""
 
-        # Get images — default (wide header) and title (logo treatment)
+        # Get images · default (wide header) and title (logo treatment)
         images        = data.get("images", [])
         image_url     = ""
         image_url_logo = ""
@@ -227,12 +227,12 @@ def save_outputs(items: list[dict]) -> None:
 
     df = pd.DataFrame(items)
 
-    # Catalogue CSV — all columns
+    # Catalogue CSV · all columns
     catalogue_path = OUTPUT_DIR / "catalogue.csv"
     df.to_csv(catalogue_path, index=False)
     print(f"\n  Saved catalogue: {catalogue_path} ({len(df)} rows)")
 
-    # Observations CSV — matches the format expected by fairness.compute_rec_share
+    # Observations CSV · matches the format expected by fairness.compute_rec_share
     obs_cols = ["slug", "title", "broadcaster", "collectionId"]
     obs_df = df[[c for c in obs_cols if c in df.columns]].copy()
     obs_df = obs_df.rename(columns={"slug": "item_id", "collectionId": "session_id"})
@@ -259,7 +259,7 @@ def save_outputs(items: list[dict]) -> None:
 
 # ── Real catalogue share from broadcaster pages ───────────────────────────────
 
-# Broadcaster page slugs on NPO Start — used to fetch their real catalogue
+# Broadcaster page slugs on NPO Start · used to fetch their real catalogue
 BROADCASTER_PAGE_SLUGS = [
     "avrotros", "bnnvara", "kro-ncrv", "max", "ntr", "eo", "vpro",
 ]
@@ -352,7 +352,7 @@ def fetch_broadcaster_catalogue_counts() -> dict:
 
 def main():
     print("=" * 60)
-    print("NPO Start — Data Collection Script")
+    print("NPO Start · Data Collection Script")
     print("Fetching real recommendation data from npo.nl/start/api")
     print("=" * 60)
 
