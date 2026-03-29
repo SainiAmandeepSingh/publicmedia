@@ -1,5 +1,6 @@
 # src/diversity.py
-# Code Implemented by AmanDeep Singh
+# Owner: AmanDeep Singh
+#
 # Public Value: Diversity — content variety for users
 # Implements diversity-aware re-ranking using Intra-List Similarity (ILS).
 # Lower ILS = more diverse recommendation list.

@@ -1,5 +1,5 @@
 # src/user_profiles.py
-# Code Implemented by AmanDeep Singh & Kiron Putman
+# Owner: AmanDeep Singh 
 # Public Value: Autonomy — user control over recommendations
 #
 # Generates synthetic user profiles grounded in real NPO genre distributions.

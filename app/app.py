@@ -1,4 +1,5 @@
 # app/app.py
+# Owner: AmanDeep Singh 
 # NPO Start — Public Values Recommender System
 # Utrecht University | INFOMPPM | Assignment 2
 # Run with: streamlit run app/app.py

@@ -1,5 +1,6 @@
 # src/synthetic_data.py
-# Code Implemented by AmanDeep Singh
+# Owner: AmanDeep Singh
+#
 # Generates realistic synthetic NPO Start catalogue and observation data.
 # Used as a fallback when the POMS API is unavailable.
 # Data is grounded in real NPO genre distributions and broadcaster portfolio sizes.

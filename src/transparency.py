@@ -1,6 +1,5 @@
 # src/transparency.py
-# Owner: Lisa Wang
-# Code Implemented by AmanDeep Singh & Lisa Wang
+# Owner:AmanDeep Singh & Lisa Wang
 # Public Value: Transparency — explanations in the interface
 #
 # Generates human-readable explanation labels for each recommended item.
