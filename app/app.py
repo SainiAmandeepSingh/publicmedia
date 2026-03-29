@@ -1,5 +1,4 @@
 # app/app.py
-# Owner: AmanDeep Singh 
 # NPO Start — Public Values Recommender System
 # Utrecht University | INFOMPPM | Assignment 2
 # Run with: streamlit run app/app.py
@@ -408,11 +407,9 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab_recs, tab_fair, tab_div, tab_profile, tab_about = st.tabs([
+tab_recs, tab_fair, tab_about = st.tabs([
     "Recommended for You",
     "⚖️ Fairness",
-    "🌍 Diversity",
-    "👤 My Profile",
     "ℹ️ About",
 ])
 
@@ -785,72 +782,7 @@ with tab_fair:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 3 — DIVERSITY  
-# ══════════════════════════════════════════════════════════════════════════════
-with tab_div:
-    section_header("Diversity Dashboard", "Padma Dhuney  ·  Coming soon", "#3AAEA0")
-    st.markdown(f"""
-<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-            min-height:340px;background:{NPO_BG_CARD};border-radius:12px;
-            border:1px solid {NPO_BG_BORDER};padding:3rem">
-  <div style="font-size:3rem;margin-bottom:1rem">🌍</div>
-  <h3 style="color:{NPO_WHITE};font-size:1.1rem;font-weight:700;margin:0 0 8px 0">
-    Diversity Dashboard</h3>
-  <p style="color:{NPO_WHITE_DIM};font-size:0.88rem;text-align:center;max-width:380px;margin:0">
-    ILS-based diversity re-ranking is already active
-    in the pipeline at Stage 2. Full dashboard coming here.</p>
-  <div style="margin-top:1.5rem;display:flex;gap:1.5rem">
-    <div style="text-align:center">
-      <div style="font-size:1.5rem;font-weight:700;color:{NPO_WHITE}">{ils_before:.2f}</div>
-      <div style="font-size:0.7rem;color:{NPO_WHITE_DIM};text-transform:uppercase;
-                  letter-spacing:0.06em">ILS Before</div>
-    </div>
-    <div style="width:1px;background:{NPO_BG_BORDER}"></div>
-    <div style="text-align:center">
-      <div style="font-size:1.5rem;font-weight:700;color:#3AAEA0">{ils_after:.2f}</div>
-      <div style="font-size:0.7rem;color:{NPO_WHITE_DIM};text-transform:uppercase;
-                  letter-spacing:0.06em">ILS After</div>
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 4 — MY PROFILE  (Kiron Putman)
-# ══════════════════════════════════════════════════════════════════════════════
-with tab_profile:
-    section_header("My Profile", "Coming soon", "#8A6CC7")
-    st.markdown(f"""
-<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;
-            min-height:340px;background:{NPO_BG_CARD};border-radius:12px;
-            border:1px solid {NPO_BG_BORDER};padding:3rem">
-  <div style="font-size:3rem;margin-bottom:1rem">🎛️</div>
-  <h3 style="color:{NPO_WHITE};font-size:1.1rem;font-weight:700;margin:0 0 8px 0">
-    User Profile and Autonomy Controls</h3>
-  <p style="color:{NPO_WHITE_DIM};font-size:0.88rem;text-align:center;max-width:380px;margin:0">
-    λ slider and genre preferences are already active
-    into the sidebar and feed the pipeline. Full profile editor coming here.</p>
-  <div style="margin-top:1.5rem;display:flex;gap:1.5rem">
-    <div style="text-align:center">
-      <div style="font-size:1.5rem;font-weight:700;color:{NPO_WHITE}">{lambda_val:.2f}</div>
-      <div style="font-size:0.7rem;color:{NPO_WHITE_DIM};text-transform:uppercase;
-                  letter-spacing:0.06em">Current λ</div>
-    </div>
-    <div style="width:1px;background:{NPO_BG_BORDER}"></div>
-    <div style="text-align:center">
-      <div style="font-size:1.5rem;font-weight:700;color:#8A6CC7">
-        {len(user_profile.get('watch_history', []))}</div>
-      <div style="font-size:0.7rem;color:{NPO_WHITE_DIM};text-transform:uppercase;
-                  letter-spacing:0.06em">Watch History</div>
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# TAB 5 — ABOUT
+# TAB 3 — ABOUT
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_about:
     section_header("About This Prototype", "INFOMPPM  ·  Utrecht University 2025-2026")
