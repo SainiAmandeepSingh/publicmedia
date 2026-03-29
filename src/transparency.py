@@ -49,7 +49,7 @@ def get_primary_reason(item: dict, user_profile: dict) -> str:
 
     if item.get('diversity_penalised') is False:
         genre = list(item_genres)[0] if item_genres else 'this genre'
-        return f"🌍 Broadening your view — {genre} content"
+        return f"🌍 Broadening your view · {genre} content"
 
     return "⭐ Popular on NPO Start"
 
@@ -109,22 +109,15 @@ def get_feature_details(item: dict, user_profile: dict) -> dict:
 ALGORITHM_EXPLAINER = """
 **How does NPO Start recommend content?**
 
-NPO Start's recommender system combines four public values to generate your recommendations:
+NPO Start's recommender system is built on four public values.
 
-1. **Relevance** — content is matched to your viewing history and genre preferences using similarity scoring.
+1. **Relevance** · Content is matched to your viewing history and genre preferences. The more you engage, the more personalised your list becomes.
 
-2. **Diversity** — your list is adjusted to include a variety of genres, so you're not shown only one type of content.
+2. **Diversity** · Your list is adjusted to include a range of genres so you are not shown only one type of content.
 
-3. **Fairness** — smaller broadcasters like VPRO, NTR, and EO are given a boost if they are underrepresented in recommendations, in line with the Mediawet 2008 mandate for balanced representation.
+3. **Fairness** · Smaller broadcasters such as VPRO, NTR, and EO are boosted when underrepresented relative to their catalogue share, as required by the Mediawet 2008.
 
-4. **Your control** — you can adjust how much the algorithm personalises for you, and which genres you prefer, using the settings in the sidebar.
-
-**What data does the system use?**
-- Your viewing history on NPO Start
-- Content metadata: genre, broadcaster, publication date
-- Broadcaster catalogue statistics (to measure fairness)
-
-You can view and edit what the system knows about you in the **Profile** section.
+4. **Your control** · You can adjust the fairness weight, set preferred genres, and control how strongly the system personalises for you using the sidebar.
 """
 
 
