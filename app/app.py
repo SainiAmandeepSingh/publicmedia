@@ -21,7 +21,7 @@ from src.fairness import (
     compute_cat_share, compute_rec_share, compute_exposure_gap,
     rerank_for_fairness, fairness_correction,
 )
-from src.transparency import get_primary_reason, get_feature_details
+from src.transparency import get_primary_reason, get_feature_details, get_algorithm_explainer
 
 # ── Page config ───────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -360,7 +360,7 @@ with st.sidebar:
 
     st.divider()
     show_explanations = st.toggle("Show explanation labels", value=True)
-    show_scores       = st.toggle("Show score breakdown",    value=False)
+    show_scores       = st.toggle("Show full explanation",    value=False)
 
     st.divider()
     from pathlib import Path as _P
@@ -431,6 +431,9 @@ with tab_recs:
         delta_color="inverse",
     )
     st.divider()
+
+    with st.expander("❓ How does the algorithm work?"):
+        st.markdown(get_algorithm_explainer())
 
     # NPO-style card: image fills card, broadcaster badge top-left, 2 info lines below
     def render_card_npo(item, user_profile, show_exp, show_score, col):
@@ -516,13 +519,25 @@ with tab_recs:
 
         if show_score:
             details = get_feature_details(item, user_profile)
-            with col.expander("Score breakdown"):
-                for k, v in details["score_breakdown"].items():
-                    try:
-                        fmt = f"{float(v):.3f}"
-                    except (TypeError, ValueError):
-                        fmt = str(v)
-                    st.write(f"**{k}:** {fmt}")
+            icon_map = {
+                "Matches": "🎯",
+                "Boosted": "⚖️",
+                "Selected": "🌍",
+                "Recently": "🆕",
+                "Popular": "🔥"
+            }            
+            with col.expander("ℹ️ Why this recommendation?"):
+                for f in details["features"]:
+                    icon = "•"
+                    for key in icon_map:
+                        if f.startswith(key):
+                            icon = icon_map[key]
+                    st.write(f"{icon} {f}")
+
+                with st.expander("See technical details"):
+                    st.write("**Score breakdown**")
+                    for k, v in details["score_breakdown"].items():
+                        st.caption(f"{k}: {v:.3f}")
 
     # 2-column grid per side (wider cards, closer to real NPO)
     def render_grid(items, user_profile, show_exp, show_score, suppress_score=False):

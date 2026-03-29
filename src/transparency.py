@@ -71,23 +71,20 @@ def get_feature_details(item: dict, user_profile: dict) -> dict:
 
     genre_match = item_genres & preferred
     if genre_match:
-        features.append(f"Genre: {', '.join(genre_match)} (matches your preferences)")
+        features.append(f"Matches your interest in {', '.join(genre_match)}")
 
     if item.get('fairness_boosted'):
-        features.append(
-            f"Broadcaster: {item.get('broadcaster')} "
-            f"(underrepresented in recommendations)"
-        )
+        features.append(f"Boosted to give more visibility to {item.get('broadcaster')}")
 
     if item.get('diversity_penalised') is False and not genre_match:
-        features.append("Selected to increase variety in your recommendation list")
+        features.append("Selected to increase variety in your recommendations")
 
     recency = item.get('recency_score', None)
     if recency and recency > 0.7:
         features.append("Recently published content")
 
     if not features:
-        features.append("Highly viewed content on NPO Start")
+        features.append("Popular on NPO Start")
 
     score_breakdown = {
         'Relevance score': round(item.get('base_score', 0), 3),
