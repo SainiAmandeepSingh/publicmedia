@@ -15,7 +15,7 @@
 | Lisa Wang | Transparency · explanations in the interface | `src/transparency.py` |
 | Kiron Putman | Autonomy · user control over recommendations | `src/user_profiles.py` |
 
-> **Primary contributor:** AmanDeep Singh designed and built the full system — the pipeline architecture, the NPO Start API data collection, the Exposure Gap fairness metric, the broadcaster-aware re-ranking algorithm, and the Streamlit application. Each group member contributed their public value module (diversity, transparency, autonomy), which AmanDeep integrated into the shared codebase, wrote all code comments and documentation across every module and file, and ensured all components work together as a single functioning system.
+> **Primary contributor:** AmanDeep Singh designed and built the full system, the pipeline architecture, the NPO Start API data collection, the Exposure Gap fairness metric, the broadcaster-aware re-ranking algorithm, and the Streamlit application. Each group member contributed their public value module (diversity, transparency, autonomy), which AmanDeep integrated into the shared codebase, wrote all code comments and documentation across every module and file, and ensured all components work together as a single functioning system.
 
 ---
 
