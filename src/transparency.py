@@ -1,6 +1,7 @@
 # src/transparency.py
-# Owner:AmanDeep Singh & Lisa Wang
-# Public Value: Transparency — explanations in the interface
+# Author: AmanDeep Singh
+# Adjustments by: Lisa Wang (label wording, explainer copy)
+# Public Value: Transparency · explanations in the interface
 #
 # Generates human-readable explanation labels for each recommended item.
 # These labels appear in the Streamlit interface as per Lisa's proposal:
