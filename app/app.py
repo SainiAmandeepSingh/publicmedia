@@ -575,7 +575,7 @@ with tab_recs:
                     show_explanations, show_scores, suppress_score=True)
     with gm:
         st.markdown(
-            f"<div style='width:1px;background:{NPO_BG_BORDER};min-height:1000px;margin:0 auto'></div>",
+            f"<div style='width:1px;background:{NPO_BG_BORDER};min-height:100%;height:100%;margin:0 auto'></div>",
             unsafe_allow_html=True)
     with gr:
         render_grid(final_df.to_dict("records"), user_profile,
