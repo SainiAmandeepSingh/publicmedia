@@ -582,7 +582,7 @@ with tab_fair:
         "its catalogue share. Lower EG means more equitable exposure.</p>",
         unsafe_allow_html=True)
     st.latex(r"EG = \frac{1}{|B|} \sum_{b \in B} \left| rec\_share(b) - cat\_share(b) \right|")
-    st.divider()
+    # st.divider()
 
     # KPIs
     m1, m2, m3 = st.columns(3)
