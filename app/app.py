@@ -418,18 +418,18 @@ tab_recs, tab_fair, tab_about = st.tabs([
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_recs:
     # KPI row
-    # c1, c2, c3, c4 = st.columns(4)
-    # c1.metric("Exposure Gap Baseline",   f"{eg_before:.3f}")
-    # c2.metric("Exposure Gap After",      f"{eg_after:.3f}",
-    #           delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
-    # c3.metric("EG Improvement", f"{eg_improve:.0f}%" if eg_improve is not None else "N/A")
-    # c4.metric(
-    #     "ILS Change",
-    #     f"{ils_before - ils_after:+.3f}",
-    #     help="Intra-List Similarity change after re-ranking. Negative = more diverse list (lower ILS). Positive = less diverse.",
-    #     delta=f"{ils_before - ils_after:+.3f}",
-    #     delta_color="inverse",
-    # )
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Exposure Gap Baseline",   f"{eg_before:.3f}")
+    c2.metric("Exposure Gap After",      f"{eg_after:.3f}",
+              delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
+    c3.metric("EG Improvement", f"{eg_improve:.0f}%" if eg_improve is not None else "N/A")
+    c4.metric(
+        "ILS Change",
+        f"{ils_before - ils_after:+.3f}",
+        help="Intra-List Similarity change after re-ranking. Negative = more diverse list (lower ILS). Positive = less diverse.",
+        delta=f"{ils_before - ils_after:+.3f}",
+        delta_color="inverse",
+    )
     with st.expander("❓ How does the algorithm work?"):
         st.markdown(get_algorithm_explainer())
 
