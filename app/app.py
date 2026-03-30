@@ -432,6 +432,7 @@ with tab_recs:
     # )
     with st.expander("❓ How does the algorithm work?"):
         st.markdown(get_algorithm_explainer())
+        st.divider()
 
     # NPO-style card: image fills card, broadcaster badge top-left, 2 info lines below
     def render_card_npo(item, user_profile, show_exp, show_score, col):
