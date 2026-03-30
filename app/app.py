@@ -93,7 +93,7 @@ button[data-baseweb="tab"][aria-selected="true"] {{
   border-bottom: 3px solid {NPO_ORANGE} !important;
 }}
 [data-testid="stTabs"] > div:first-child {{
-  border-bottom: 1px solid {NPO_BG_BORDER} !important;
+  border-bottom: none !important;
 }}
 [data-testid="stTabsContent"] {{
   background: transparent !important;
@@ -417,6 +417,19 @@ tab_recs, tab_fair, tab_about = st.tabs([
 # TAB 1 — Recommended for You
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_recs:
+    # KPI row
+    # c1, c2, c3, c4 = st.columns(4)
+    # c1.metric("Exposure Gap Baseline",   f"{eg_before:.3f}")
+    # c2.metric("Exposure Gap After",      f"{eg_after:.3f}",
+    #           delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
+    # c3.metric("EG Improvement", f"{eg_improve:.0f}%" if eg_improve is not None else "N/A")
+    # c4.metric(
+    #     "ILS Change",
+    #     f"{ils_before - ils_after:+.3f}",
+    #     help="Intra-List Similarity change after re-ranking. Negative = more diverse list (lower ILS). Positive = less diverse.",
+    #     delta=f"{ils_before - ils_after:+.3f}",
+    #     delta_color="inverse",
+    # )
     with st.expander("❓ How does the algorithm work?"):
         st.markdown(get_algorithm_explainer())
 
@@ -561,7 +574,9 @@ with tab_recs:
         render_grid(baseline_top.to_dict("records"), user_profile,
                     show_explanations, show_scores, suppress_score=True)
     with gm:
-        st.empty()
+        st.markdown(
+            f"<div style='width:1px;background:{NPO_BG_BORDER};min-height:400px;margin:0 auto'></div>",
+            unsafe_allow_html=True)
     with gr:
         render_grid(final_df.to_dict("records"), user_profile,
                     show_explanations, show_scores)
@@ -582,7 +597,7 @@ with tab_fair:
         "its catalogue share. Lower EG means more equitable exposure.</p>",
         unsafe_allow_html=True)
     st.latex(r"EG = \frac{1}{|B|} \sum_{b \in B} \left| rec\_share(b) - cat\_share(b) \right|")
-    # st.divider()
+    st.divider()
 
     # KPIs
     m1, m2, m3 = st.columns(3)
