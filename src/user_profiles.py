@@ -153,9 +153,12 @@ def _sample_watch_history(catalogue_df: pd.DataFrame, persona_config: dict, n: i
     weights = persona_config["genre_weights"]
 
     def score_item(row):
-        genres = row.get('genres', [])
+        # Use bracket access for pandas Series rows; fall back safely
+        genres = row['genres'] if 'genres' in row.index else []
         if isinstance(genres, str):
             genres = [g.strip() for g in genres.split(',')]
+        elif not isinstance(genres, list):
+            genres = []
         return max([weights.get(g, 0.01) for g in genres] or [0.01])
 
     if 'genres' not in catalogue_df.columns or catalogue_df.empty:
@@ -163,16 +166,28 @@ def _sample_watch_history(catalogue_df: pd.DataFrame, persona_config: dict, n: i
 
     df = catalogue_df.copy()
     df['_weight'] = df.apply(score_item, axis=1)
+
+    # Drop rows with zero, negative, or NaN weights before sampling.
+    df = df[df['_weight'].notna() & (df['_weight'] > 0)].reset_index(drop=True)
+
+    if df.empty:
+        return []
+
     total = df['_weight'].sum()
     if total == 0:
         return []
 
+    # Use replace=True to avoid the pandas constraint that rejects high-weight
+    # distributions with replace=False (raised when weight.max() * n > 1).
+    # Duplicates are removed afterwards so watch_history stays clean.
+    sample_n = min(n * 3, max(n, len(df)))  # oversample to account for dedup
     sampled = df.sample(
-        n=min(n, len(df)),
-        weights=df['_weight'] / total,
-        replace=False,
+        n=sample_n,
+        weights=df['_weight'],
+        replace=True,
     )
-    return sampled['item_id'].tolist()
+    unique_ids = list(dict.fromkeys(sampled['item_id'].tolist()))  # preserve order, deduplicate
+    return unique_ids[:n]
 
 
 # ── Autonomy: apply user preference overrides ───────────────────────────────
