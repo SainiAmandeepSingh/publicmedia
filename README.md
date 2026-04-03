@@ -2,7 +2,7 @@
 ### Personalisation for (Public) Media · Assignment 2
 **Utrecht University | INFOMPPM | 2025-2026**
 
-> **Live demo:** [nporecommender.streamlit.app](https://nporecommender.streamlit.app)
+> **Live demo:** [nporecommender.streamlit.app](https://nporecommender.streamlit.app) 
 
 ---
 
