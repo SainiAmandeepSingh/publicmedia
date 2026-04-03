@@ -66,4 +66,4 @@ Computing `cat_share` from the recommendation sample would produce EG = 0 by con
 
 If `catalogue.csv` does not exist, the app generates synthetic data using `src/synthetic_data.py`. The synthetic catalogue has 300 items with broadcaster proportions grounded in real NPO portfolio sizes. EG values will differ from the real-data case but the intervention still demonstrates correctly.
 
-The app shows 🟢 Real data or 🟡 Synthetic data in the top navigation bar.
+The app shows 🟢 Real data or 🟡 Synthetic data in the bottom navigation bar.
