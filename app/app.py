@@ -1,5 +1,5 @@
 # app/app.py
-# NPO Start — Public Values Recommender System
+# NPO Start · Public Values Recommender System
 # Utrecht University | INFOMPPM | Assignment 2
 # Run with: streamlit run app/app.py
 
@@ -173,7 +173,7 @@ hr {{ border-color: {NPO_BG_BORDER} !important; opacity: 0.5 !important; }}
 # ── Data loading ──────────────────────────────────────────────────────────────
 DATA_DIR = Path(__file__).parent.parent / "data" / "processed"
 
-# Real NPO broadcaster catalogue share — derived from NPO Start broadcaster pages
+# Real NPO broadcaster catalogue share · derived from NPO Start broadcaster pages
 # via the page-layout + page-collection API (fetched by data_loader.py).
 # Falls back to hardcoded estimates if cat_share.json is not available.
 # Source: live NPO Start API (npo.nl/start/api/domain/page-layout?layoutId=<broadcaster>)
@@ -414,22 +414,9 @@ tab_recs, tab_fair, tab_about = st.tabs([
 ])
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 1 — Recommended for You
+# TAB 1 · Recommended for You
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_recs:
-    # KPI row
-    # c1, c2, c3, c4 = st.columns(4)
-    # c1.metric("Exposure Gap Baseline",   f"{eg_before:.3f}")
-    # c2.metric("Exposure Gap After",      f"{eg_after:.3f}",
-    #           delta=f"{eg_after - eg_before:+.3f}", delta_color="inverse")
-    # c3.metric("EG Improvement", f"{eg_improve:.0f}%" if eg_improve is not None else "N/A")
-    # c4.metric(
-    #     "ILS Change",
-    #     f"{ils_before - ils_after:+.3f}",
-    #     help="Intra-List Similarity change after re-ranking. Negative = more diverse list (lower ILS). Positive = less diverse.",
-    #     delta=f"{ils_before - ils_after:+.3f}",
-    #     delta_color="inverse",
-    # )
     with st.expander("❓ How does the algorithm work?"):
         st.markdown(get_algorithm_explainer())
 
@@ -445,14 +432,14 @@ with tab_recs:
         img_url = (item.get("image_url") or "").strip()
         genre_text = "  ·  ".join(genres[:2]) if genres else ""
 
-        # Fairness boost badge — top-right
+        # Fairness boost badge · top-right
         boost = (
             "<div style='position:absolute;top:8px;right:8px;"
             "background:#5BBF8A;color:white;font-size:0.6rem;font-weight:700;"
             "padding:2px 8px;border-radius:3px;z-index:2'>&#x2B06; boost</div>"
         ) if boosted else ""
 
-        # Broadcaster badge — top-left, coloured
+        # Broadcaster badge · top-left, coloured
         bc_badge = (
             "<div style='position:absolute;top:8px;left:8px;"
             "background:" + colour + ";color:white;"
@@ -491,7 +478,7 @@ with tab_recs:
 
         col.markdown(card, unsafe_allow_html=True)
 
-        # Line 1: genre — always shown
+        # Line 1: genre · always shown
         if genre_text:
             col.markdown(
                 "<p style='margin:2px 0 0 2px;font-size:0.72rem;"
@@ -500,7 +487,7 @@ with tab_recs:
                 + genre_text + "</p>",
                 unsafe_allow_html=True)
 
-        # Line 2: explanation reason — always shown when show_exp
+        # Line 2: explanation reason · always shown when show_exp
         if show_exp:
             reason = get_primary_reason(item, user_profile)
             # Strip the emoji and clean up
@@ -575,7 +562,7 @@ with tab_recs:
                     show_explanations, show_scores, suppress_score=True)
     with gm:
         st.markdown(
-            f"<div style='width:1px;background:{NPO_BG_BORDER};min-height:500px;margin:0 auto'></div>",
+            f"<div style='width:1px;background:{NPO_BG_BORDER};min-height:2000px;margin:0 auto'></div>",
             unsafe_allow_html=True)
     with gr:
         render_grid(final_df.to_dict("records"), user_profile,
@@ -583,7 +570,7 @@ with tab_recs:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 2 — FAIRNESS DASHBOARD
+# TAB 2 · FAIRNESS DASHBOARD
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_fair:
     section_header(
@@ -768,7 +755,7 @@ with tab_fair:
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TAB 3 — ABOUT
+# TAB 3 · ABOUT
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_about:
     section_header("About This Prototype", "INFOMPPM  ·  Utrecht University 2025-2026")
@@ -826,10 +813,21 @@ institutional obligations rather than pure engagement metrics.
 
     with c2:
         label("Data Sources")
+        # Show real data source when real NPO data is loaded, synthetic otherwise
+        real_loaded = (DATA_DIR / "catalogue.csv").exists()
         sources = [
-            ("NPO Start API",       "Public · no authentication", "Observation baseline (rec_share)", NPO_ORANGE),
-            ("Synthetic Catalogue", "Generated · 300 items",      "Content catalogue",                "#5B8FCC"),
-            ("Synthetic Users",     "Generated · 30 profiles",    "6 NPO viewer personas",            "#3AAEA0"),
+            ("NPO Start API",
+             "Public · no authentication",
+             "Observation baseline (rec_share) · " + ("real data loaded" if real_loaded else "see data_loader.py"),
+             NPO_ORANGE),
+            ("NPO Start Broadcaster Pages",
+             "Public · no authentication" if real_loaded else "Run data_loader.py to fetch",
+             "Catalogue proportions (cat_share) · " + (f"{len(cat)} series" if real_loaded else "fallback estimates in use"),
+             "#5BBF8A" if real_loaded else "#5B8FCC"),
+            ("Synthetic Users",
+             "Generated · 30 profiles",
+             "6 NPO-adapted viewer personas",
+             "#3AAEA0"),
         ]
         for src, stype, use, colour in sources:
             st.markdown(f"""

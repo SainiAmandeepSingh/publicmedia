@@ -1,7 +1,6 @@
 # src/diversity.py
-# Owner: AmanDeep Singh
-#
-# Public Value: Diversity — content variety for users
+# Author: AmanDeep Singh
+# Public Value: Diversity · content variety for users
 # Implements diversity-aware re-ranking using Intra-List Similarity (ILS).
 # Lower ILS = more diverse recommendation list.
 # Uses Jaccard distance on genre tags as the similarity measure,
@@ -63,7 +62,7 @@ def rerank_for_diversity(
     Apply diversity-aware re-ranking using a greedy selection strategy.
 
     For each position in the top-N list, selects the item that maximises:
-        selection_score = current_score − diversity_factor × mean_similarity_to_already_selected
+        selection_score = current_score - diversity_factor x mean_similarity_to_already_selected
 
     This penalises items that are too similar to already selected items,
     promoting genre variety across the recommendation list.
@@ -76,7 +75,7 @@ def rerank_for_diversity(
 
     Returns:
         DataFrame of top_n items re-ranked for diversity, with added column:
-        'diversity_penalised' (bool — True if item was moved down due to diversity)
+        'diversity_penalised' (bool · True if item was moved down due to diversity)
     """
     df = candidate_df.copy().reset_index(drop=True)
     original_order = df['item_id'].tolist()

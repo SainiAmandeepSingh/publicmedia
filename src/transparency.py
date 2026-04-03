@@ -112,7 +112,7 @@ ALGORITHM_EXPLAINER = """
 This prototype integrates four public values into a single recommendation pipeline.
 
 **The four stages:**
-- **Autonomy** · Content matched to your genre preferences
+- **Relevance** · Content matched to your viewing history and genre preferences
 - **Diversity** · Genre variety ensured across your list using ILS re-ranking
 - **Fairness** · Underrepresented broadcasters (VPRO, NTR, EO) boosted to meet Mediawet 2008
 - **Transparency** · Every card shows a short reason for the recommendation

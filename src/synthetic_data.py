@@ -1,6 +1,5 @@
 # src/synthetic_data.py
-# Owner: AmanDeep Singh
-#
+# Author: AmanDeep Singh
 # Generates realistic synthetic NPO Start catalogue and observation data.
 # Used as a fallback when the POMS API is unavailable.
 # Data is grounded in real NPO genre distributions and broadcaster portfolio sizes.
@@ -95,7 +94,7 @@ def generate_catalogue(n_items=300, seed=42):
                 "title": base_title + suffix,
                 "broadcaster": broadcaster,
                 "genres": _pick_genres(broadcaster, rng),
-                "description": f"{base_title} — een programma van {broadcaster}.",
+                "description": f"{base_title} - een programma van {broadcaster}.",
                 "publication_date": pub_date.strftime("%Y-%m-%d"),
                 "episode_number": int(rng.integers(1, 13)),
                 "series_id": f"series_{broadcaster.lower()}_{(i // 3) + 1:03d}",
@@ -113,7 +112,7 @@ def generate_observation_sample(catalogue_df, n_sessions=60, seed=42):
     described in AmanDeep Singh's research proposal.
     """
     rng = np.random.default_rng(seed)
-    # Biased sampling weights — simulating CTR-driven dominance
+    # Biased sampling weights · simulating CTR-driven dominance
     OBSERVATION_BIAS = {
         "AVROTROS": 0.55,
         "MAX":      0.28,

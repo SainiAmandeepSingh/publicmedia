@@ -1,6 +1,7 @@
 # src/user_profiles.py
-# Owner: AmanDeep Singh 
-# Public Value: Autonomy — user control over recommendations
+# Author: AmanDeep Singh
+# Contributions by: Kiron Putman (persona definitions, autonomy controls)
+# Public Value: Autonomy · user control over recommendations
 #
 # Generates synthetic user profiles grounded in real NPO genre distributions.
 # Based on the course's synthesize_user_data.ipynb utility (Utilities folder).
@@ -138,7 +139,7 @@ def generate_users(
                 "broadcaster_affinity": persona_config["broadcaster_affinity"].copy(),
                 "genre_weights": persona_config["genre_weights"].copy(),
                 "watch_history": watch_history,
-                # Autonomy settings — user can modify these in the interface
+                # Autonomy settings · user can modify these in the interface
                 "lambda_preference": round(random.uniform(0.3, 0.7), 2),
                 "diversity_preference": round(random.uniform(0.2, 0.6), 2),
                 "show_explanations": True,

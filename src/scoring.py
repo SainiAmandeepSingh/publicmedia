@@ -1,6 +1,5 @@
 # src/scoring.py
-# Owner: AmanDeep Singh
-#
+# Author: AmanDeep Singh
 # Base content-based scoring using cosine similarity
 # Consistent with Week 5 course materials (Nearest Neighbour)
 
@@ -112,10 +111,10 @@ def _compute_recency(df: pd.DataFrame) -> pd.Series:
 
 # Default popularity bias to simulate NPO Start's CTR-driven imbalance
 DEFAULT_POPULARITY_BIAS = {
-    "AVROTROS": 0.5,   # Dominant broadcaster — inflated
-    "MAX": 0.4,         # Large catalogue — inflated
+    "AVROTROS": 0.5,   # Dominant broadcaster · inflated
+    "MAX": 0.4,         # Large catalogue · inflated
     "KRO-NCRV": 0.2,
-    "VPRO": 0.0,        # No inflation — structurally disadvantaged
+    "VPRO": 0.0,        # No inflation · structurally disadvantaged
     "NTR": 0.0,
     "EO": 0.0,
 }

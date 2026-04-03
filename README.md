@@ -1,12 +1,12 @@
 # NPO Start · Public Values Recommender System
 ### Personalisation for (Public) Media · Assignment 2
-**Utrecht University | INFOMPPM | 2025–2026**
+**Utrecht University | INFOMPPM | 2025-2026**
 
 > **Live demo:** [nporecommender.streamlit.app](https://nporecommender.streamlit.app)
 
 ---
 
-## 👥 Group Members and Public Values
+## Group Members and Public Values
 
 | Name | Public Value | Module |
 |---|---|---|
@@ -15,17 +15,13 @@
 | Lisa Wang | Transparency · explanations in the interface | `src/transparency.py` |
 | Kiron Putman | Autonomy · user control over recommendations | `src/user_profiles.py` |
 
-> **Primary contributor:** AmanDeep Singh designed and built the full system, the pipeline architecture, the NPO Start API data collection, the Exposure Gap fairness metric, the broadcaster-aware re-ranking algorithm, and the Streamlit application. Each group member contributed their public value module (diversity, transparency, autonomy), which AmanDeep integrated into the shared codebase, wrote all code comments and documentation across every module and file, and ensured all components work together as a single functioning system.
+> **Primary contributor: AmanDeep Singh** designed, built and maintained the full ecosystem, covering the pipeline architecture, the NPO Start API data collection, the Exposure Gap fairness metric, the broadcaster-aware re-ranking algorithm, and the Streamlit application. Each group member contributed slightly in their public value module (diversity, transparency, autonomy), which AmanDeep fully integrated into the shared codebase, wrote all code comments and documentation across every module and file, and ensured all components work together as a single functioning system.
 
 ---
 
-## 📺 Project Overview
+## Project Overview
 
-This project builds a working recommender system prototype for **NPO Start**, the on-demand
-platform of the Nederlandse Publieke Omroep (NPO). The system addresses a structural fairness
-gap in NPO's CTR-optimised pipeline, which systematically underexposes smaller member
-broadcasters (VPRO, NTR, EO) in violation of the Mediawet 2008 mandate for balanced
-representation.
+This project builds a working recommender system prototype for **NPO Start**, the on-demand platform of the Nederlandse Publieke Omroep (NPO). The system addresses a structural fairness gap in NPO's CTR-optimised pipeline, which systematically underexposes smaller member broadcasters (VPRO, NTR, EO) in violation of the Mediawet 2008 mandate for balanced representation.
 
 The prototype integrates four public values into a single Streamlit application:
 
@@ -51,7 +47,7 @@ The prototype integrates four public values into a single Streamlit application:
 
 ---
 
-## 🗂️ Repository Structure
+## Repository Structure
 
 ```
 publicmedia/
@@ -70,14 +66,15 @@ publicmedia/
 |
 +-- data/
 |   +-- processed/              # Pre-fetched real NPO data (committed for Streamlit Cloud)
-|       +-- catalogue.csv       # 162 real NPO Start series with broadcaster and genre
+|       +-- catalogue.csv       # Real NPO Start series with broadcaster and genre tags
 |       +-- observations.csv    # Recommendation observation baseline
 |       +-- rec_share.json      # Broadcaster recommendation share (pre-intervention)
 |       +-- cat_share.json      # Broadcaster catalogue share (from broadcaster pages API)
 |
 +-- docs/
-|   +-- api_walkthrough.md      # NPO Start API endpoint documentation
-|   +-- data_loader_guide.md    # How data_loader.py works and what it fetches
+|   +-- api_assumptions.docx    # API exploration, data choices and assumptions
+|   +-- api_walkthrough.md      # NPO Start API endpoint reference
+|   +-- data_loader_guide.md    # How data_loader.py works and what it outputs
 |
 +-- .devcontainer/              # Streamlit Cloud devcontainer configuration
 +-- requirements.txt
@@ -87,7 +84,7 @@ publicmedia/
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Clone the repository
 ```bash
@@ -112,17 +109,17 @@ pip install -r requirements.txt
 streamlit run app/app.py
 ```
 
-The app loads real NPO Start data from `data/processed/` automatically.
-If that folder is missing, it falls back to synthetic data.
-To re-fetch fresh data from the NPO Start API, run:
+The app loads real NPO Start data from `data/processed/` automatically. If that folder is missing, it falls back to synthetic data. To re-fetch fresh data from the NPO Start API, run:
 
 ```bash
 python src/data_loader.py
 ```
 
+See `docs/data_loader_guide.md` for full details on what this fetches and why.
+
 ---
 
-## 📊 Data Sources
+## Data Sources
 
 | Source | Type | Used For |
 |---|---|---|
@@ -131,9 +128,7 @@ python src/data_loader.py
 | Synthetic catalogue | Generated · 300 items | Fallback when processed data is unavailable |
 | Synthetic users | Generated · 30 profiles | 6 NPO-adapted viewer personas |
 
-The `data/processed/` folder is committed to the repository so that the hosted Streamlit app
-at [nporecommender.streamlit.app](https://nporecommender.streamlit.app) loads real data
-without requiring a local data collection step.
+The `data/processed/` folder is committed to the repository so that the hosted Streamlit app at [nporecommender.streamlit.app](https://nporecommender.streamlit.app) loads real data without requiring a local data collection step.
 
 ---
 
@@ -141,8 +136,7 @@ without requiring a local data collection step.
 
 ### Fairness Re-ranking (AmanDeep Singh)
 
-Inserts a broadcaster-aware correction at Stage 3 of the pipeline, after content scoring
-and diversity re-ranking, before display.
+Inserts a broadcaster-aware correction at Stage 3 of the pipeline, after content scoring and diversity re-ranking, before display.
 
 **Exposure Gap metric:**
 ```
@@ -158,9 +152,7 @@ fairness_correction(b)      = max(0, cat_share(b) - rec_share(b))
 fairness_correction_norm(b) = fairness_correction(b) / max(fairness_correction)
 ```
 
-The correction is normalised to [0,1] so it competes on the same scale as the base score.
-Lambda is selected via grid search to reduce EG below a target threshold.
-A minimum lambda floor of 0.10 is enforced (Mediawet 2008 constraint).
+The correction is normalised to [0,1] so it competes on the same scale as the base score. Lambda is selected via grid search to reduce EG below a target threshold. A minimum lambda floor of 0.10 is enforced under the Mediawet 2008 constraint.
 
 ### Diversity Re-ranking (Padma Dhuney)
 
@@ -174,12 +166,11 @@ selection_score(item) = base_score - diversity_factor x mean_similarity_to_selec
 
 ### Transparency (Lisa Wang)
 
-Every card displays a short reason label. An info pop-up shows feature details and score
-breakdown. A general explainer is accessible via the sidebar.
+Every card displays a short reason label. An info pop-up shows feature details and score breakdown. A general explainer is accessible from the Recommended for You tab.
 
 ### Autonomy (Kiron Putman)
 
-Lambda slider and genre preference panel in the sidebar. Minimum lambda of 0.10 enforced.
+Lambda slider and genre preference panel in the sidebar. Minimum lambda of 0.10 always enforced regardless of user setting.
 
 ---
 
